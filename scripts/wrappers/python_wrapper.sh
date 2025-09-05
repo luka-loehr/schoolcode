@@ -97,6 +97,10 @@ if [[ "$USER" == "Guest" ]]; then
     export PYTHONDONTWRITEBYTECODE=1  # Prevent .pyc files
     export PYTHONUNBUFFERED=1        # Ensure output is visible
     
+    # Block PYTHONPATH manipulation for security
+    unset PYTHONPATH
+    export PYTHONPATH="/tmp/restricted"  # Only allow safe path
+    
     # Check if this is a 'python -m pip' call
     if [[ "$1" == "-m" ]] && [[ "$2" == "pip" ]]; then
         # This is a Guest user trying to use 'python -m pip'
@@ -134,7 +138,9 @@ if [[ "$USER" == "Guest" ]]; then
         fi
         
         # If code is safe, execute with restrictions
-        export PYTHONPATH="/tmp/restricted:$PYTHONPATH"  # Prepend safe path
+        # Block PYTHONPATH manipulation for security
+        unset PYTHONPATH
+        export PYTHONPATH="/tmp/restricted"  # Only allow safe path
         
     # Check for other dangerous Python modules
     elif [[ "$1" == "-m" ]]; then

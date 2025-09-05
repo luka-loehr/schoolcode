@@ -1,305 +1,239 @@
-<!--
-Copyright (c) 2025 Luka Löhr
--->
-
 # AdminHub Security Architecture
 
-## Overview
+**AdminHub - macOS Guest Account Security System**  
+*Professional Security Documentation*  
+© 2025 Luka Löhr. All rights reserved.
 
-AdminHub provides development tools to Guest users while maintaining strict security boundaries. This document explains the security model, design decisions, and why certain operations are blocked while others are allowed.
+---
 
-## The Challenge
+## Executive Summary
 
-In educational environments, we need to balance two competing requirements:
-1. **Freedom to Learn**: Students should be able to experiment and install packages
-2. **System Integrity**: Each student must get a clean, working environment
+AdminHub implements a comprehensive multi-layered security architecture designed to provide development tools to Guest users in educational environments while maintaining strict system integrity and preventing unauthorized modifications. The system employs defense-in-depth principles with multiple security controls, wrapper-based command interception, and comprehensive audit logging.
 
-The key insight: **Not all package managers are created equal** when it comes to user isolation.
+## Security Model Overview
 
-## Security Model
+### Core Security Principles
 
-### Core Principle
-All Guest user modifications must be:
-- **Session-isolated**: Changes affect only the current user
-- **Temporary**: Everything resets on logout
-- **Non-destructive**: Cannot break tools for other users
+1. **Defense in Depth**: Multiple complementary security layers
+2. **Fail Secure**: Block by default, allow only explicitly safe operations
+3. **User Isolation**: Guest modifications are session-isolated and temporary
+4. **System Integrity**: Zero tolerance for system-wide modifications
+5. **Comprehensive Monitoring**: All security events are logged and auditable
 
-### Why This Matters
-Imagine a classroom scenario:
-- Student A logs in at 9 AM, tries to install a package
-- Student B logs in at 10 AM, expects working tools
-- If Student A could modify system tools, Student B gets a broken environment
+### Threat Model
 
-## Package Manager Security Analysis
+AdminHub protects against the following threat vectors:
 
-### 🟢 Python/pip - User Isolation Supported
+- **System Modification**: Prevention of unauthorized system-wide changes
+- **Privilege Escalation**: Blocking of sudo and administrative access
+- **Package Manager Bypass**: Control of pip, npm, yarn, and brew operations
+- **File System Attacks**: Protection against system directory manipulation
+- **Code Injection**: Prevention of malicious Python code execution
+- **Environment Manipulation**: Control of environment variables and paths
+- **Network Exploitation**: Restriction of dangerous network operations
 
-Python's pip has built-in support for user-specific installations:
+## Security Architecture
 
-```bash
-pip install --user package_name
-# Installs to ~/.local/lib/python3.x/site-packages/
-```
+### Layer 1: Command Wrapper System
 
-**Why we allow it:**
-- `--user` flag enables true isolation
-- Packages install to user's home directory
-- macOS automatically cleans Guest home on logout
-- No risk to system Python or other users
+AdminHub implements a comprehensive wrapper system that intercepts and analyzes all tool commands before execution:
 
-**Our implementation:**
-- Force `PIP_USER=1` environment variable
-- Auto-add `--user` flag if missing
-- Block system-wide flags like `--target /usr/local`
+#### Core Development Tools
+- **Git Wrapper** (`git_wrapper.sh`): Controls git operations, blocks global configuration
+- **Python Wrapper** (`python_wrapper.sh`): Monitors Python execution, blocks dangerous imports
+- **Pip Wrapper** (`pip_wrapper.sh`): Forces user-only installations, blocks system targets
 
-### 🔴 Homebrew - System-Wide Only
+#### Package Managers
+- **NPM Wrapper** (`npm_wrapper.sh`): Blocks global installations, enforces local-only
+- **Yarn Wrapper** (`yarn_wrapper.sh`): Prevents global package management
+- **Brew Wrapper** (`brew_wrapper.sh`): Completely blocks all Homebrew operations
 
-Homebrew does NOT support user-specific installations:
+#### Network Tools
+- **Curl Wrapper** (`curl_wrapper.sh`): Blocks system directory writes, dangerous HTTP methods
+- **Wget Wrapper** (`wget_wrapper.sh`): Prevents system file downloads
 
-```bash
-brew install package_name
-# ALWAYS installs to /opt/homebrew/ (Apple Silicon) or /usr/local/ (Intel)
-```
+#### System Commands
+- **Sudo Wrapper** (`sudo_wrapper.sh`): Completely blocks sudo access
+- **File Operation Wrappers**: Control rm, mv, cp, chmod operations
+- **Build Tool Wrappers**: Block make install, direct install commands
 
-**Why we must block it:**
-1. **No user isolation**: Homebrew has no `--user` equivalent
-2. **Shared installation**: All users share the same Homebrew prefix
-3. **Persistence**: Packages remain after Guest logout
-4. **Dependency conflicts**: Student A installs node@16, Student B needs node@18
-5. **Potential for damage**: `brew uninstall python` breaks AdminHub itself
+### Layer 2: Binary Protection System
 
-**Real-world example:**
-```bash
-# Guest user runs:
-brew install node
-brew uninstall python
-brew upgrade --force
+The binary protection system (`binary_wrapper.sh`) replaces direct system binary access with security-controlled wrappers:
 
-# Result:
-# - Node persists for all future users (unexpected tool)
-# - Python is gone (AdminHub broken)
-# - Random packages upgraded (compatibility issues)
-```
+- **Path Interception**: Redirects direct binary calls to security wrappers
+- **Bypass Prevention**: Blocks attempts to circumvent wrapper system
+- **Consistent Enforcement**: Ensures all tool access goes through security controls
 
-### 🟡 NPM - Conditional Support
+### Layer 3: Environment Security
 
-NPM supports both modes:
-```bash
-npm install package       # Local to project (allowed)
-npm install -g package    # Global install (blocked)
-```
+#### Python Environment Controls
+- **PYTHONPATH Restriction**: Blocks malicious module loading
+- **Import Monitoring**: Prevents dangerous Python imports
+- **Subprocess Blocking**: Blocks calls to restricted tools
+- **Site-packages Protection**: Prevents direct system package manipulation
 
-**Our approach:**
-- Allow local project installs
-- Block `-g` (global) flag
-- Set `NPM_CONFIG_PREFIX` to user directory
+#### Package Manager Environment
+- **User-only Installations**: Forces all packages to user directories
+- **Configuration Control**: Blocks dangerous configuration changes
+- **Cache Management**: Prevents cache-based attacks
 
-### 🟢 Git - Configuration Isolation
+### Layer 4: File System Protection
 
-Git already separates user and system configuration:
-```bash
-git config --global   # User-specific (~/.gitconfig) ✓
-git config --system   # System-wide (/etc/gitconfig) ✗
-```
+#### System Directory Protection
+- **Read-only System Access**: Blocks writes to `/usr*`, `/opt*`, `/Library*`, `/System*`
+- **Path Traversal Prevention**: Blocks `..` and other traversal patterns
+- **Permission Control**: Prevents dangerous file permission changes
+
+#### User Directory Isolation
+- **Home Directory Scope**: All modifications limited to user home directory
+- **Session Cleanup**: Automatic cleanup on Guest logout
+- **Temporary File Control**: Manages temporary file creation
+
+## Security Controls by Category
+
+### Package Management Security
+
+#### Python/pip Security
+- **User-only Installations**: All packages install to `~/.local/`
+- **System Target Blocking**: Blocks `--target`, `--prefix`, `--root` flags
+- **Isolation Prevention**: Blocks `--isolated` and configuration bypass flags
+- **Environment Control**: Forces `PIP_USER=1` and safe configuration
+
+#### Node.js Package Security
+- **Global Installation Blocking**: Prevents `npm install -g` and `yarn global add`
+- **Local-only Operations**: Enforces project-specific installations
+- **Configuration Protection**: Blocks dangerous npm/yarn configuration changes
+
+#### Homebrew Security
+- **Complete Blocking**: All Homebrew operations blocked for Guest users
+- **No Exceptions**: No read-only operations allowed
+- **Clear Alternatives**: Provides guidance for alternative approaches
+
+### File System Security
+
+#### System File Protection
+- **Deletion Prevention**: Blocks deletion of system files and directories
+- **Modification Control**: Prevents modification of system files
+- **Permission Security**: Blocks dangerous permission changes (777, setuid, setgid)
+
+#### Directory Access Control
+- **System Directory Blocking**: Prevents access to system directories
+- **Path Validation**: Validates all file paths for security
+- **Traversal Prevention**: Blocks directory traversal attacks
+
+### Network Security
+
+#### Download Restrictions
+- **System Directory Blocking**: Prevents downloads to system directories
+- **Method Restrictions**: Blocks dangerous HTTP methods (POST, PUT, DELETE)
+- **Protocol Security**: Prevents insecure SSL connections
+- **Proxy Protection**: Blocks proxy configuration manipulation
+
+#### URL Security
+- **System Port Blocking**: Prevents access to system ports
+- **File URL Blocking**: Blocks file:// URL access
+- **DNS Protection**: Prevents DNS manipulation attacks
+
+### Command Execution Security
+
+#### Privilege Escalation Prevention
+- **Sudo Blocking**: Complete blocking of sudo access
+- **Administrative Command Blocking**: Prevents admin-level operations
+- **Permission Escalation**: Blocks attempts to gain elevated privileges
+
+#### Code Execution Control
+- **Subprocess Blocking**: Prevents calls to restricted tools
+- **Import Control**: Blocks dangerous Python imports
+- **Environment Manipulation**: Controls environment variable access
+
+## Security Monitoring and Logging
+
+### Audit Logging
+- **Security Event Logging**: All security attempts logged to `/var/log/adminhub/security.log`
+- **Bypass Detection**: Automatic detection of circumvention attempts
+- **Comprehensive Coverage**: All wrapper interactions are logged
+
+### Monitoring Capabilities
+- **Real-time Detection**: Immediate blocking of security violations
+- **Pattern Recognition**: Detection of attack patterns
+- **User Activity Tracking**: Complete audit trail of Guest user activities
 
 ## Implementation Details
 
-### Security Wrapper Architecture
-
+### Wrapper Architecture
 ```
 /opt/admin-tools/
-├── bin/              # Symlinks to wrappers
-│   ├── brew -> ../wrappers/brew
-│   ├── pip -> ../wrappers/pip
-│   └── python -> ../wrappers/python
-├── wrappers/         # Security wrapper scripts
-│   ├── brew         # Blocks modifications
-│   ├── pip          # Forces --user
-│   └── python       # Sets secure environment
-└── actual/bin/       # Real tool symlinks
-    ├── brew -> /opt/homebrew/bin/brew
-    ├── pip -> /opt/homebrew/bin/pip
-    └── python -> /opt/homebrew/bin/python
+├── wrappers/           # Security wrapper scripts
+│   ├── git_wrapper.sh
+│   ├── pip_wrapper.sh
+│   ├── brew_wrapper.sh
+│   └── ...
+├── security/           # System-level protection
+│   ├── binary_wrapper.sh
+│   ├── sudo_wrapper.sh
+│   └── ...
+└── bin/                # Symlinks to wrappers
+    ├── git -> ../wrappers/git
+    ├── pip -> ../wrappers/pip
+    └── ...
 ```
 
-### Brew Wrapper Logic
+### Security Flow
+1. **Command Interception**: All tool commands intercepted by wrappers
+2. **Security Analysis**: Commands analyzed for security risks
+3. **Policy Enforcement**: Security policies applied based on analysis
+4. **Execution Control**: Safe commands executed, dangerous ones blocked
+5. **Audit Logging**: All actions logged for security monitoring
 
-```bash
-case "$1" in
-    # Blocked: Modifications
-    install|uninstall|upgrade|update|tap|untap|link|unlink)
-        echo "❌ Error: System-wide modifications are not allowed"
-        exit 1
-        ;;
-    # Allowed: Read-only operations
-    list|info|search|doctor|config)
-        exec "$ACTUAL_BREW" "$@"
-        ;;
-esac
-```
+## Compliance and Standards
 
-### Pip Wrapper Logic
+### Security Standards
+- **Defense in Depth**: Multiple security layers
+- **Principle of Least Privilege**: Minimal necessary permissions
+- **Fail Secure**: Secure by default configuration
+- **Comprehensive Monitoring**: Complete audit trail
 
-```bash
-# Force user installation
-export PIP_USER=1
-
-# Auto-add --user flag
-if [[ "$1" == "install" ]] && [[ "$*" != *"--user"* ]]; then
-    set -- "$1" --user "${@:2}"
-fi
-
-exec "$ACTUAL_PIP" "$@"
-```
-
-## Why Not Allow brew install with Cleanup?
-
-A common question: "Why not track what Guest installs and remove it on logout?"
-
-### The Dependency Problem
-
-When you install a package with Homebrew, it often installs dependencies:
-
-```bash
-# Guest installs:
-brew install node
-
-# Homebrew actually installs:
-# - node (what user wanted)
-# - icu4c (Unicode library)
-# - openssl@3 (SSL library)  
-# - ca-certificates (Root certificates)
-```
-
-If we remove all of these on logout, we might break AdminHub tools that depend on the same libraries.
-
-### The Version Conflict Problem
-
-```bash
-# AdminHub uses:
-python@3.11
-
-# Guest installs:
-brew install python@3.12
-
-# Result: Two Python versions
-# Problem: Which one should pip use?
-# Bigger problem: brew upgrade python would upgrade AdminHub's Python!
-```
-
-### The Upgrade Problem
-
-Upgrades are irreversible:
-
-```bash
-# Guest runs:
-brew upgrade python
-
-# This upgrades system Python from 3.11 to 3.12
-# Cannot "downgrade" back - original version is gone
-# AdminHub might break if not compatible with 3.12
-```
-
-### The Formula Modification Problem
-
-```bash
-# Guest runs:
-brew tap some-random/tap
-brew install some-random/modified-python --force
-
-# This could replace AdminHub's Python with a modified version
-# No way to detect this happened
-```
-
-### Why Current Approach is Better
-
-By blocking brew modifications entirely:
-1. **Zero maintenance** - No cleanup needed
-2. **Guaranteed stability** - Tools always work
-3. **Fast logouts** - No cleanup process
-4. **No conflicts** - One version of everything
-5. **Predictable** - Every student gets identical environment
+### Educational Compliance
+- **FERPA Considerations**: Student data protection
+- **Institutional Policies**: Alignment with school security policies
+- **Audit Requirements**: Comprehensive logging for compliance
 
 ## Security Benefits
 
-Our approach provides:
+### For Educational Institutions
+- **Predictable Environment**: Consistent tools for all students
+- **System Stability**: No risk of system-wide modifications
+- **Compliance Support**: Comprehensive audit logging
+- **Maintenance Reduction**: Automated security enforcement
 
-1. **Predictable Environment**: Every student gets identical tools
-2. **No Accumulation**: System doesn't bloat over time
-3. **Damage Prevention**: Students cannot break core tools
-4. **Simple Mental Model**: "You can experiment, but only in your space"
-5. **Zero Maintenance**: No manual cleanup needed
+### For Students
+- **Safe Experimentation**: Can try packages without fear
+- **Consistent Experience**: Same environment every time
+- **Learning Focus**: No time wasted on broken environments
+- **Real-world Practice**: Mirrors corporate security environments
 
-## Educational Advantages
+## Maintenance and Updates
 
-This security model actually enhances learning:
+### Security Updates
+- **Regular Review**: Security controls reviewed regularly
+- **Threat Adaptation**: Updates based on new threat vectors
+- **Vulnerability Management**: Prompt response to security issues
 
-1. **Safe Experimentation**: Students can try pip packages without fear
-2. **Consistent Experience**: All students get the same environment
-3. **Focus on Code**: No time wasted on broken environments
-4. **Real-World Practice**: Mirrors corporate environments with restrictions
+### Monitoring and Maintenance
+- **Log Analysis**: Regular review of security logs
+- **Performance Monitoring**: Ensure security doesn't impact performance
+- **User Feedback**: Incorporate legitimate user needs
 
-## Advanced Security Features
+## Conclusion
 
-### Multi-Layer Protection
+AdminHub's security architecture provides comprehensive protection for educational environments while maintaining the flexibility needed for effective learning. The multi-layered approach ensures that even if one security control fails, others will prevent unauthorized access or modification.
 
-AdminHub implements defense-in-depth with multiple security layers:
+The system successfully balances security requirements with educational needs, providing a safe, stable, and predictable environment for students while protecting institutional systems and data.
 
-#### Layer 1: Wrapper Scripts
-- **Location**: `/opt/admin-tools/wrappers/`
-- **Function**: Analyze commands and block dangerous operations
-- **Coverage**: pip, python, brew, git
+---
 
-#### Layer 2: Binary Protection
-- **Function**: Replace direct system binaries with security wrappers
-- **Protected paths**: `/opt/homebrew/bin/`, `/usr/local/bin/`
-- **Backup location**: `/opt/admin-tools/actual-direct-backups/`
-
-#### Layer 3: Configuration Control
-- **pip.conf**: Forces `user = true` for all installations
-- **Environment variables**: `PIP_USER=1`, `PYTHONUSERBASE=~/.local`
-- **Git config**: Blocks `--global` and `--system` modifications
-
-#### Layer 4: Python Code Analysis
-- **Import blocking**: Prevents direct `import pip` usage
-- **System call blocking**: Blocks `os.system()`, `subprocess` to restricted tools
-- **Path validation**: Prevents writes to system directories
-
-### Bypass Prevention
-
-AdminHub actively prevents common bypass techniques:
-
-```bash
-# These attempts are automatically blocked:
-pip install --isolated --target /usr/local package
-python -c "import pip; pip.main(['install', 'package'])"
-/opt/homebrew/bin/pip install package
-brew install package
-git config --global core.editor "malicious_command"
-```
-
-### Security Monitoring
-
-- **Activity logging**: All security events logged to `/var/log/adminhub/`
-- **Bypass detection**: Automatic detection of circumvention attempts
-- **Audit trail**: Complete record of Guest user activities
-
-### Validation Tools
-
-- **Security audit**: `scripts/tests/security_audit.sh`
-- **Validation suite**: `scripts/tests/validation.sh`
-- **Health monitoring**: Built into `adminhub-cli.sh status`
-
-## Summary
-
-AdminHub's security model provides comprehensive protection through multiple complementary layers. The system ensures that:
-
-- ✅ Students can install Python packages safely to their user directory
-- ✅ Direct binary access bypasses are prevented
-- ✅ System-level modifications are blocked
-- ✅ Python code execution is monitored and restricted
-- ✅ All security events are logged and auditable
-- ✅ Each session starts fresh and clean
-- ✅ System remains stable and predictable
-
-This comprehensive security architecture ensures every student gets a working, safe environment every time.
+**Document Version**: 1.0  
+**Last Updated**: January 2025  
+**Author**: Luka Löhr  
+**Classification**: Internal Use Only

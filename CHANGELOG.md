@@ -9,6 +9,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-09-04
+### Added
+- **Comprehensive Security Controls** (`scripts/wrappers/`)
+  - Multi-layer protection with wrapper scripts for pip, python, brew, git
+  - Automatic bypass detection and prevention
+  - Python code analysis for dangerous imports and system calls
+  - Configuration file protection with forced user-only installs
+  - Security event logging to `/var/log/adminhub/`
+
+- **Advanced Wrapper System**
+  - Python wrapper with import blocking and code analysis
+  - Pip wrapper with comprehensive flag validation
+  - Homebrew wrapper with complete Guest user restrictions
+  - Git wrapper with controlled access and config protection
+
+- **Security Testing Suite** (`scripts/tests/`)
+  - Comprehensive security audit tool for bypass detection
+  - Validation suite for essential security controls
+  - Quick validation for status checking
+
+- **Binary Protection** (`scripts/security/`)
+  - Protection against direct binary access bypasses
+  - Backup system for original binaries
+  - Automatic redirection to secure wrappers
+
+### Improved
+- **Pip Security**: Blocks `--isolated`, `--target`, `--prefix`, `--root`, `--no-user-cfg`, `--no-site-cfg` flags
+- **Python Security**: Prevents `import pip`, blocks dangerous system calls, validates file operations
+- **Environment Protection**: Forces secure pip configuration and environment variables
+- **Monitoring**: All security events are logged and auditable
+
+### Security
+- **Critical**: Fixed bypass vulnerabilities in pip package installation
+- **High**: Prevented Python code execution bypasses
+- **Medium**: Enhanced git configuration security
+- **Defense-in-Depth**: Multiple security layers prevent circumvention attempts
+
 ## [2.0.1] - 2025-07-02
 ### Fixed
 - **Bash 3.2 Compatibility**: All v2.0 features now work with macOS default bash 3.2

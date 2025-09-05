@@ -239,14 +239,67 @@ This security model actually enhances learning:
 3. **Focus on Code**: No time wasted on broken environments
 4. **Real-World Practice**: Mirrors corporate environments with restrictions
 
+## Advanced Security Features
+
+### Multi-Layer Protection
+
+AdminHub implements defense-in-depth with multiple security layers:
+
+#### Layer 1: Wrapper Scripts
+- **Location**: `/opt/admin-tools/wrappers/`
+- **Function**: Analyze commands and block dangerous operations
+- **Coverage**: pip, python, brew, git
+
+#### Layer 2: Binary Protection
+- **Function**: Replace direct system binaries with security wrappers
+- **Protected paths**: `/opt/homebrew/bin/`, `/usr/local/bin/`
+- **Backup location**: `/opt/admin-tools/actual-direct-backups/`
+
+#### Layer 3: Configuration Control
+- **pip.conf**: Forces `user = true` for all installations
+- **Environment variables**: `PIP_USER=1`, `PYTHONUSERBASE=~/.local`
+- **Git config**: Blocks `--global` and `--system` modifications
+
+#### Layer 4: Python Code Analysis
+- **Import blocking**: Prevents direct `import pip` usage
+- **System call blocking**: Blocks `os.system()`, `subprocess` to restricted tools
+- **Path validation**: Prevents writes to system directories
+
+### Bypass Prevention
+
+AdminHub actively prevents common bypass techniques:
+
+```bash
+# These attempts are automatically blocked:
+pip install --isolated --target /usr/local package
+python -c "import pip; pip.main(['install', 'package'])"
+/opt/homebrew/bin/pip install package
+brew install package
+git config --global core.editor "malicious_command"
+```
+
+### Security Monitoring
+
+- **Activity logging**: All security events logged to `/var/log/adminhub/`
+- **Bypass detection**: Automatic detection of circumvention attempts
+- **Audit trail**: Complete record of Guest user activities
+
+### Validation Tools
+
+- **Security audit**: `scripts/tests/security_audit.sh`
+- **Validation suite**: `scripts/tests/validation.sh`
+- **Health monitoring**: Built into `adminhub-cli.sh status`
+
 ## Summary
 
-The key insight is that **pip supports user isolation, but Homebrew does not**. By blocking Homebrew modifications while allowing pip user installs, we achieve the perfect balance:
+AdminHub's security model provides comprehensive protection through multiple complementary layers. The system ensures that:
 
-- ✅ Students can install Python packages for their projects
+- ✅ Students can install Python packages safely to their user directory
+- ✅ Direct binary access bypasses are prevented
+- ✅ System-level modifications are blocked
+- ✅ Python code execution is monitored and restricted
+- ✅ All security events are logged and auditable
 - ✅ Each session starts fresh and clean
-- ✅ No student can break tools for others
 - ✅ System remains stable and predictable
-- ✅ Zero maintenance required
 
-This isn't a limitation—it's a feature that ensures every student gets a working environment every time.
+This comprehensive security architecture ensures every student gets a working, safe environment every time.

@@ -8,7 +8,7 @@ Automated developer tool deployment for macOS Guest accounts.
 
 [![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/luka-loehr/AdminHub)
 [![macOS](https://img.shields.io/badge/macOS-10.14%2B-success)](https://support.apple.com/macos)
-[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-Site%20License-blue)](LICENSE)
 
 ## Overview
 
@@ -130,6 +130,12 @@ For detailed security architecture and rationale, see [SECURITY.md](SECURITY.md)
 
 ## License
 
-Apache License 2.0 - © 2025 Luka Löhr
+**SITE LICENSE** - © 2025 Luka Löhr. All rights reserved.
+
+This software is licensed for use within authorized educational institutions only. 
+Each school receives a site license that allows internal use and modification 
+but prohibits sharing with other institutions.
+
+**For licensing inquiries, contact: luka.loehr@example.com**
 
 Created for Lessing-Gymnasium Karlsruhe.

@@ -9,6 +9,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-01-25
+
+### 🚀 Major Security Enhancement - Enterprise-Grade Protection
+
+#### Added
+- **Comprehensive Security Wrapper System** (`scripts/wrappers/`)
+  - **NPM Wrapper** (`npm_wrapper.sh`): Blocks global installations, enforces local-only operations
+  - **Yarn Wrapper** (`yarn_wrapper.sh`): Prevents global package management, blocks dangerous flags
+  - **Curl Wrapper** (`curl_wrapper.sh`): Blocks system directory writes, dangerous HTTP methods, proxy manipulation
+  - **Wget Wrapper** (`wget_wrapper.sh`): Prevents system file downloads, blocks dangerous flags
+  - **Sudo Wrapper** (`sudo_wrapper.sh`): Completely blocks sudo access for Guest users
+  - **File Operation Wrappers**: Control rm, mv, cp, chmod operations with system protection
+  - **Build Tool Wrappers**: Block make install, direct install commands
+
+- **System-Level Protection** (`scripts/security/`)
+  - **Binary Protection** (`binary_wrapper.sh`): Prevents direct binary access bypasses
+  - **Install Wrapper** (`install_wrapper.sh`): Blocks dangerous install commands
+  - **Make Wrapper** (`make_wrapper.sh`): Prevents make install/uninstall operations
+
+- **Professional Documentation**
+  - **SECURITY.md**: Complete professional security architecture documentation
+  - **agents.md**: Comprehensive agent instructions and working guidelines
+  - **Site License**: Updated to educational institution site license
+
+#### Enhanced
+- **Python Security**: Added PYTHONPATH manipulation blocking for enhanced security
+- **Pip Security**: Enhanced flag validation and bypass prevention
+- **Git Security**: Improved global configuration blocking
+- **File System Protection**: Enhanced system directory protection
+- **Network Security**: Improved download and HTTP method restrictions
+
+#### Security
+- **Critical**: Fixed PYTHONPATH manipulation vulnerability
+- **High**: Enhanced system file protection across all wrappers
+- **Medium**: Improved network security controls
+- **Defense-in-Depth**: Added multiple additional security layers
+
+#### Changed
+- **License**: Updated from Apache 2.0 to Site License for educational institutions
+- **Repository**: Made private for additional security
+- **Documentation**: Removed pentesting files, focused on production security
+
 ## [2.1.0] - 2025-09-04
 ### Added
 - **Comprehensive Security Controls** (`scripts/wrappers/`)

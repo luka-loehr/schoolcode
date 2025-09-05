@@ -6,7 +6,7 @@ Copyright (c) 2025 Luka Löhr
 
 Automated developer tool deployment for macOS Guest accounts.
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/luka-loehr/AdminHub)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue)](https://github.com/luka-loehr/AdminHub)
 [![macOS](https://img.shields.io/badge/macOS-10.14%2B-success)](https://support.apple.com/macos)
 [![License](https://img.shields.io/badge/license-Site%20License-blue)](LICENSE)
 
@@ -111,7 +111,7 @@ All Guest modifications are isolated to their session and automatically cleaned 
 
 For detailed security architecture and rationale, see [SECURITY.md](SECURITY.md).
 
-## Key Features (v2.1.0+)
+## Key Features (v2.2.0+)
 
 - **Official Python**: Uses python.org installer instead of Homebrew
 - **Auto-updating**: Python automatically fetches latest stable version

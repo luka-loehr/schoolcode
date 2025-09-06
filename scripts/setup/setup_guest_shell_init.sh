@@ -26,13 +26,13 @@ chmod 755 /usr/local/bin/guest_login_setup
 
 # Install the LaunchAgent
 echo "🤖 Installing LaunchAgent..."
-cp launchagents/com.adminhub.guestsetup.plist /Library/LaunchAgents/
-chmod 644 /Library/LaunchAgents/com.adminhub.guestsetup.plist
+cp launchagents/com.schoolcode.guestsetup.plist /Library/LaunchAgents/
+chmod 644 /Library/LaunchAgents/com.schoolcode.guestsetup.plist
 
 # Load the LaunchAgent
-launchctl load /Library/LaunchAgents/com.adminhub.guestsetup.plist 2>/dev/null || true
+launchctl load /Library/LaunchAgents/com.schoolcode.guestsetup.plist 2>/dev/null || true
 
-# Note: The old com.adminhub.guestterminal.plist is no longer needed
+# Note: The old com.schoolcode.guestterminal.plist is no longer needed
 # Terminal is now opened by the guest_login_setup script
 
 echo ""

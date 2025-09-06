@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Guest Auto Setup
+# SchoolCode Guest Auto Setup
 # Runs automatically when the Guest user opens Terminal
 
 # Only run for Guest user
@@ -10,12 +10,12 @@ if [[ "$(whoami)" != "Guest" ]]; then
 fi
 
 # Check if already initialized in this session
-if [[ "$ADMINHUB_INITIALIZED" == "true" ]]; then
+if [[ "$SCHOOLCODE_INITIALIZED" == "true" ]]; then
     return 0 2>/dev/null || exit 0
 fi
 
 # Mark as initialized
-export ADMINHUB_INITIALIZED="true"
+export SCHOOLCODE_INITIALIZED="true"
 
 # Check if this is an interactive terminal
 if [[ ! -t 0 ]]; then
@@ -30,7 +30,7 @@ GUEST_TOOLS_DIR="/Users/Guest/tools"
 if [[ ! -d "$GUEST_TOOLS_DIR/bin" ]]; then
     clear
     echo "╔════════════════════════════════════════╗"
-    echo "║     🚀 AdminHub Guest Setup 🚀         ║"
+    echo "║     🚀 SchoolCode Guest Setup 🚀         ║"
     echo "║        © 2025 Luka Löhr                ║"
     echo "╚════════════════════════════════════════╝"
     echo ""
@@ -43,7 +43,7 @@ if [[ ! -d "$GUEST_TOOLS_DIR/bin" ]]; then
         echo "Please contact administrator."
         echo ""
         echo "Administrator must run:"
-        echo "  cd /path/to/AdminHub && sudo ./setup.sh"
+        echo "  cd /path/to/SchoolCode && sudo ./setup.sh"
         exit 1
     fi
     
@@ -121,10 +121,10 @@ else
     export PATH="$HOME/.local/bin:$PATH"
     
     # Show welcome message only once per session
-    if [[ "$ADMINHUB_WELCOME_SHOWN" != "true" ]]; then
-        export ADMINHUB_WELCOME_SHOWN="true"
+    if [[ "$SCHOOLCODE_WELCOME_SHOWN" != "true" ]]; then
+        export SCHOOLCODE_WELCOME_SHOWN="true"
         echo ""
-        echo "✨ AdminHub tools are ready!"
+        echo "✨ SchoolCode tools are ready!"
         echo "Available: brew, python3, python, git, pip3, pip"
         echo "© 2025 Luka Löhr"
         echo ""

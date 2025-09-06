@@ -9,8 +9,8 @@ set -euo pipefail
 SCRIPT_DIR="$(dirname "$0")"
 source "${SCRIPT_DIR}/logging.sh"
 
-WRAPPERS_DIR="/opt/admin-tools/wrappers"
-ACTUAL_TOOLS_DIR="/opt/admin-tools/actual"
+WRAPPERS_DIR="/opt/schoolcode/wrappers"
+ACTUAL_TOOLS_DIR="/opt/schoolcode/actual"
 
 # Create wrapper directories
 create_wrapper_structure() {
@@ -36,8 +36,8 @@ create_brew_wrapper() {
 # Find the actual brew executable
 find_actual_brew() {
     # First check if we have a direct symlink
-    if [ -L "/opt/admin-tools/actual/bin/brew" ]; then
-        local target=$(readlink "/opt/admin-tools/actual/bin/brew")
+    if [ -L "/opt/schoolcode/actual/bin/brew" ]; then
+        local target=$(readlink "/opt/schoolcode/actual/bin/brew")
         if [ -x "$target" ]; then
             echo "$target"
             return
@@ -110,8 +110,8 @@ create_python_wrapper() {
 # Find the actual python executable
 find_actual_python() {
     # First check if we have a direct symlink
-    if [ -L "/opt/admin-tools/actual/bin/python" ]; then
-        local target=$(readlink "/opt/admin-tools/actual/bin/python")
+    if [ -L "/opt/schoolcode/actual/bin/python" ]; then
+        local target=$(readlink "/opt/schoolcode/actual/bin/python")
         if [ -x "$target" ]; then
             echo "$target"
             return
@@ -119,8 +119,8 @@ find_actual_python() {
     fi
     
     # Fallback to python3 if python doesn't exist
-    if [ -L "/opt/admin-tools/actual/bin/python3" ]; then
-        local target=$(readlink "/opt/admin-tools/actual/bin/python3")
+    if [ -L "/opt/schoolcode/actual/bin/python3" ]; then
+        local target=$(readlink "/opt/schoolcode/actual/bin/python3")
         if [ -x "$target" ]; then
             echo "$target"
             return
@@ -183,8 +183,8 @@ EOF
 # Find the actual pip executable
 find_actual_pip() {
     # First check if we have a direct symlink
-    if [ -L "/opt/admin-tools/actual/bin/pip" ]; then
-        local target=$(readlink "/opt/admin-tools/actual/bin/pip")
+    if [ -L "/opt/schoolcode/actual/bin/pip" ]; then
+        local target=$(readlink "/opt/schoolcode/actual/bin/pip")
         if [ -x "$target" ]; then
             echo "$target"
             return
@@ -192,8 +192,8 @@ find_actual_pip() {
     fi
     
     # Fallback to pip3 if pip doesn't exist
-    if [ -L "/opt/admin-tools/actual/bin/pip3" ]; then
-        local target=$(readlink "/opt/admin-tools/actual/bin/pip3")
+    if [ -L "/opt/schoolcode/actual/bin/pip3" ]; then
+        local target=$(readlink "/opt/schoolcode/actual/bin/pip3")
         if [ -x "$target" ]; then
             echo "$target"
             return
@@ -284,8 +284,8 @@ create_git_wrapper() {
 # Find the actual git executable
 find_actual_git() {
     # First check if we have a direct symlink
-    if [ -L "/opt/admin-tools/actual/bin/git" ]; then
-        local target=$(readlink "/opt/admin-tools/actual/bin/git")
+    if [ -L "/opt/schoolcode/actual/bin/git" ]; then
+        local target=$(readlink "/opt/schoolcode/actual/bin/git")
         if [ -x "$target" ]; then
             echo "$target"
             return
@@ -325,14 +325,14 @@ EOF
 
 # Create npm wrapper (if npm is available)
 create_npm_wrapper() {
-    if [[ -f "/opt/admin-tools/actual/bin/npm" ]]; then
+    if [[ -f "/opt/schoolcode/actual/bin/npm" ]]; then
         log_info "Creating npm security wrapper..."
         
         cat > "$WRAPPERS_DIR/npm" << 'EOF'
 #!/bin/bash
 # NPM wrapper for Guest users - prevents global installations
 
-ACTUAL_NPM="/opt/admin-tools/actual/bin/npm"
+ACTUAL_NPM="/opt/schoolcode/actual/bin/npm"
 
 # Check if running as Guest
 if [[ "$USER" == "Guest" ]]; then
@@ -358,14 +358,14 @@ EOF
 
 # Create gem wrapper (if Ruby gems are available)
 create_gem_wrapper() {
-    if [[ -f "/opt/admin-tools/actual/bin/gem" ]]; then
+    if [[ -f "/opt/schoolcode/actual/bin/gem" ]]; then
         log_info "Creating gem security wrapper..."
         
         cat > "$WRAPPERS_DIR/gem" << 'EOF'
 #!/bin/bash
 # Gem wrapper for Guest users - forces user installations
 
-ACTUAL_GEM="/opt/admin-tools/actual/bin/gem"
+ACTUAL_GEM="/opt/schoolcode/actual/bin/gem"
 
 # Check if running as Guest
 if [[ "$USER" == "Guest" ]]; then
@@ -386,7 +386,7 @@ EOF
 update_symlinks_to_wrappers() {
     log_info "Updating symlinks to use security wrappers..."
     
-    local admin_bin="/opt/admin-tools/bin"
+    local admin_bin="/opt/schoolcode/bin"
     
     # For each wrapper we created, update the symlink
     for wrapper in "$WRAPPERS_DIR"/*; do
@@ -407,7 +407,7 @@ update_symlinks_to_wrappers() {
 move_actual_tools() {
     log_info "Moving actual tools to secure location..."
     
-    local admin_bin="/opt/admin-tools/bin"
+    local admin_bin="/opt/schoolcode/bin"
     
     # Move real tool symlinks to actual directory
     for tool in brew python python3 pip pip3 git npm gem; do

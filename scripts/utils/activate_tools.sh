@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Tools Activator
+# SchoolCode Tools Activator
 # This script activates the tools immediately in the current shell
 
 # Check if script is called with source
@@ -16,7 +16,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     exit 1
 fi
 
-echo "🔄 Activating AdminHub tools..."
+echo "🔄 Activating SchoolCode tools..."
 echo "© 2025 Luka Löhr"
 
 # Add to PATH
@@ -52,7 +52,7 @@ if command -v python3 &> /dev/null && [ -L "/opt/admin-tools/bin/python3" ]; the
     echo "🎉 You can now use all tools in THIS terminal!"
     echo ""
     echo "Note: This activation applies only to the current terminal session."
-    echo "New terminals will have the tools automatically if install_adminhub.sh was run"
+    echo "New terminals will have the tools automatically if install_SchoolCode.sh was run"
 else
-    echo "❌ Tools not found. Please run: sudo ./install_adminhub.sh"
+    echo "❌ Tools not found. Please run: sudo ./install_SchoolCode.sh"
 fi 

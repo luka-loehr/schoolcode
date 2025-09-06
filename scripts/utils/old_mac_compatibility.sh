@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 #
-# Old Mac Compatibility Checker - Validates system requirements for AdminHub
+# Old Mac Compatibility Checker - Validates system requirements for SchoolCode
 # Handles macOS versions back to 10.14 (Mojave) and identifies potential issues
 
 set -euo pipefail
@@ -190,7 +190,7 @@ check_internet_connection() {
     
     if [[ "$connected" == "false" ]]; then
         log_error "No internet connection detected"
-        log_error "AdminHub requires internet access to download tools"
+        log_error "SchoolCode requires internet access to download tools"
         ((COMPAT_ERRORS++))
         return 1
     fi
@@ -258,10 +258,10 @@ check_conflicting_software() {
 
 # Generate compatibility report
 generate_compatibility_report() {
-    local report_file="/tmp/adminhub_compatibility_report.txt"
+    local report_file="/tmp/schoolcode_compatibility_report.txt"
     
     cat > "$report_file" << EOF
-AdminHub Compatibility Report
+SchoolCode Compatibility Report
 Generated: $(date)
 ========================================
 
@@ -303,7 +303,7 @@ EOF
     fi
     
     if [[ $COMPAT_STATUS == "compatible" ]]; then
-        echo "  - System is ready for AdminHub installation" >> "$report_file"
+        echo "  - System is ready for SchoolCode installation" >> "$report_file"
     fi
     
     echo "" >> "$report_file"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Uninstallation
+# SchoolCode Uninstallation
 # Removes all installed components
 
 set -e
@@ -13,8 +13,8 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Only show prompt if not called from CLI
-if [ "$ADMINHUB_CLI_UNINSTALL" != "true" ]; then
-    echo "🗑️  AdminHub Uninstallation"
+if [ "$SCHOOLCODE_CLI_UNINSTALL" != "true" ]; then
+    echo "🗑️  SchoolCode Uninstallation"
     echo ""
     echo "This will remove:"
     echo "  • LaunchAgents"
@@ -32,9 +32,9 @@ if [ "$ADMINHUB_CLI_UNINSTALL" != "true" ]; then
 fi
 
 # Remove LaunchAgents
-launchctl unload /Library/LaunchAgents/com.adminhub.guestsetup.plist 2>/dev/null || true
-rm -f /Library/LaunchAgents/com.adminhub.guestsetup.plist
-rm -f /Library/LaunchAgents/com.adminhub.guestterminal.plist
+launchctl unload /Library/LaunchAgents/com.schoolcode.guestsetup.plist 2>/dev/null || true
+rm -f /Library/LaunchAgents/com.schoolcode.guestsetup.plist
+rm -f /Library/LaunchAgents/com.schoolcode.guestterminal.plist
 
 # Remove scripts
 rm -f /usr/local/bin/guest_login_setup
@@ -49,12 +49,12 @@ rm -f /usr/local/bin/open_guest_terminal
 rm -rf /opt/admin-tools
 
 # Clean up logs
-rm -f /tmp/adminhub-*.log
-rm -f /tmp/adminhub-*.err
-rm -rf /var/log/adminhub
+rm -f /tmp/schoolcode-*.log
+rm -f /tmp/schoolcode-*.err
+rm -rf /var/log/schoolcode
 
 # Only show completion message if not called from CLI
-if [ "$ADMINHUB_CLI_UNINSTALL" != "true" ]; then
+if [ "$SCHOOLCODE_CLI_UNINSTALL" != "true" ]; then
     echo "✅ Uninstallation completed!"
     echo ""
     echo "Note: Homebrew and packages (git, python) were NOT removed."

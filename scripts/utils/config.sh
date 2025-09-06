@@ -1,16 +1,16 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Configuration Management System (Bash 3.2 Compatible)
-# Centralized configuration for all AdminHub components
+# SchoolCode Configuration Management System (Bash 3.2 Compatible)
+# Centralized configuration for all SchoolCode components
 
 # Source logging if available
 [[ -f "${BASH_SOURCE%/*}/logging.sh" ]] && source "${BASH_SOURCE%/*}/logging.sh"
 
 # Configuration file location
-CONFIG_DIR="/etc/adminhub"
-CONFIG_FILE="$CONFIG_DIR/adminhub.conf"
-USER_CONFIG_FILE="$HOME/.adminhub.conf"
+CONFIG_DIR="/etc/schoolcode"
+CONFIG_FILE="$CONFIG_DIR/schoolcode.conf"
+USER_CONFIG_FILE="$HOME/.schoolcode.conf"
 
 # Default configuration values (bash 3.2 compatible)
 DEFAULT_ADMIN_TOOLS_DIR="/opt/admin-tools"
@@ -75,7 +75,7 @@ get_tool_test_cmd() {
 }
 
 # Configuration storage (using files instead of associative arrays)
-CONFIG_CACHE_FILE="/tmp/adminhub_config_cache.$$"
+CONFIG_CACHE_FILE="/tmp/schoolcode_config_cache.$"
 
 # Function to create default config file
 create_default_config() {
@@ -85,8 +85,8 @@ create_default_config() {
     [[ $EUID -eq 0 ]] && mkdir -p "$config_dir" 2>/dev/null
     
     cat > "$config_file" << 'EOF'
-# AdminHub Configuration File
-# This file contains settings for the AdminHub system
+# SchoolCode Configuration File
+# This file contains settings for the SchoolCode system
 # Lines starting with # are comments
 
 # Paths Configuration
@@ -358,7 +358,7 @@ validate_config() {
 # Function to show current configuration
 show_config() {
     echo "╔═══════════════════════════════════════╗"
-    echo "║        AdminHub Configuration         ║"
+    echo "║        SchoolCode Configuration         ║"
     echo "╚═══════════════════════════════════════╝"
     echo ""
     

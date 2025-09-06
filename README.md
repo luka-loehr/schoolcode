@@ -2,134 +2,72 @@
 Copyright (c) 2025 Luka Löhr
 -->
 
-# AdminHub
+# SchoolCode
 
-Automated developer tool deployment for macOS Guest accounts.
+Automated, secure developer tool deployment for macOS Guest accounts.
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/luka-loehr/AdminHub)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/luka-loehr/SchoolCode)
 [![macOS](https://img.shields.io/badge/macOS-10.14%2B-success)](https://support.apple.com/macos)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
 ## Overview
 
-AdminHub automatically provides development tools to Guest users on shared Macs with enterprise-grade security.
+SchoolCode provides a safe, experimental development environment for students on shared macOS machines. It automatically deploys essential developer tools to Guest accounts, ensuring system integrity and preventing students from accidentally or intentionally breaking the system or tools for others.
 
-**Tools included:**
-- Python 3 & Python (latest version from python.org)
-- Git
-- Homebrew
-- pip (with automatic `--user` flag for Guest users)
+## Key Features
 
-**Security features:**
-- All Guest modifications are user-local only
-- System-wide installations are blocked
-- Changes reset on logout
-- No risk of students breaking tools
+*   **Secure Guest Environment**: Students can experiment freely without worrying about breaking system configurations or tools. All changes are temporary and isolated to their session.
+*   **Essential Developer Tools**: Provides Homebrew, Python (from python.org), Git, and pip, pre-configured for secure use.
+*   **Automated Setup & Updates**: Simplifies deployment and maintenance with one-command installation and comprehensive updates.
+*   **Old Mac Compatibility**: Includes features for robust operation on older macOS versions.
 
 ## Requirements
 
-- macOS 10.14 (Mojave) or newer
-- Admin access
-- [Homebrew](https://brew.sh) installed
-- Guest account enabled
-- 5GB free disk space
-- Internet connection (for Python download during installation)
+*   macOS 10.14 (Mojave) or newer
+*   Admin access
+*   [Homebrew](https://brew.sh) installed
+*   Guest account enabled
+*   5GB free disk space
+*   Internet connection (for Python download during installation)
 
 ## Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/luka-loehr/AdminHub.git
-cd AdminHub
+git clone https://github.com/luka-loehr/SchoolCode.git
+cd SchoolCode
 
-# Install (includes automatic system repairs for old Macs)
-sudo ./scripts/adminhub-cli.sh install
-
-# Verify installation
-sudo ./scripts/adminhub-cli.sh status
+# Install SchoolCode and its tools (requires sudo)
+sudo ./scripts/SchoolCode-cli.sh install
 ```
-
-All components should show "✅ HEALTHY".
-
-**Note**: Installation automatically downloads and installs the latest Python version from python.org.
 
 ## Usage
 
+SchoolCode is managed via its command-line interface:
+
 ```bash
-sudo ./scripts/adminhub-cli.sh status     # Check if working
-sudo ./scripts/adminhub-cli.sh update     # Update AdminHub & all dependencies
-sudo ./scripts/adminhub-cli.sh uninstall  # Remove AdminHub
+# Check system health and status
+sudo ./scripts/SchoolCode-cli.sh status
+
+# Update SchoolCode and all managed dependencies
+sudo ./scripts/SchoolCode-cli.sh update
+
+# Remove SchoolCode from the system
+sudo ./scripts/SchoolCode-cli.sh uninstall
+
+# View error logs
+./scripts/SchoolCode-cli.sh logs error
+
+# Get help and see all commands
+./scripts/SchoolCode-cli.sh --help
 ```
-
-The `update` command automatically:
-- Pulls latest AdminHub code from GitHub
-- Updates Python to the latest version
-- Updates Git, Homebrew, and pip
-- Re-runs installation to apply changes
-
-If status shows issues, check logs:
-```bash
-./scripts/adminhub-cli.sh logs error     # View error logs
-```
-
-## Architecture
-
-- **Tools Location**: `/opt/admin-tools/`
-- **Configuration**: `/etc/adminhub/adminhub.conf`
-- **Logs**: `/var/log/adminhub/`
-- **LaunchAgent**: `/Library/LaunchAgents/com.adminhub.guestsetup.plist`
-
-## How It Works
-
-1. Admin installs tools to `/opt/admin-tools/`
-   - Python is installed from official python.org installer
-   - Git is managed via Homebrew
-2. Security wrappers prevent system modifications
-3. LaunchAgent activates on Guest login
-4. Tools added to Guest's PATH (including Python Framework directory)
-5. pip configured with `break-system-packages=true` and `user=true`
-6. All Guest changes stay in their home directory
-7. Everything resets on Guest logout
 
 ## Security
 
-AdminHub implements strict security for Guest users:
+SchoolCode implements strict security measures to ensure a safe and stable environment. Guest user modifications are isolated, temporary, and non-destructive. For a detailed explanation of the security architecture and rationale, including how specific tools are managed, please refer to:
 
-- **Blocked Operations**:
-  - `brew install/uninstall` - No system packages
-  - `sudo` commands - Completely disabled
-  - System-wide installations - All blocked
-  
-- **Allowed Operations**:
-  - `pip install numpy` - Auto-installs to ~/.local (user flag enforced)
-  - `brew list` - View installed packages
-  - `python script.py` - Run Python code
-  - `git clone` - Work with repositories
-  - `python -m venv myenv` - Create virtual environments
-
-All Guest modifications are isolated to their session and automatically cleaned on logout.
-
-For detailed security architecture and rationale, see [SECURITY.md](SECURITY.md).
-
-## Key Features (v2.1.0+)
-
-- **Official Python**: Uses python.org installer instead of Homebrew
-- **Auto-updating**: Python automatically fetches latest stable version
-- **Dynamic paths**: No hardcoded Python versions - adapts to installed version
-- **One-command updates**: `sudo adminhub update` updates everything
-- **pip configuration**: Pre-configured for Guest users (user-only installs)
-- **Old Mac support**: Comprehensive repairs for systems 4+ years without updates
-
-## Troubleshooting
-
-- **Installation fails**: Check prerequisites and disk space
-- **Status shows issues**: Check error logs with `adminhub logs error`
-- **Python not found**: Ensure internet connection during installation
-- **pip permission errors**: Should not occur - pip is pre-configured
-- **Need more commands**: Run `adminhub --help`
+[SECURITY.md](SECURITY.md)
 
 ## License
 
 Apache License 2.0 - © 2025 Luka Löhr
-
-Created for Lessing-Gymnasium Karlsruhe.

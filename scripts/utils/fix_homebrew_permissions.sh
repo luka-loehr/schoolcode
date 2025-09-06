@@ -27,9 +27,9 @@ fi
 sudo chmod -R o+rX /opt/admin-tools 2>/dev/null || true
 
 # Fix LaunchAgent permissions
-if [ -f "/Library/LaunchAgents/com.adminhub.guestsetup.plist" ]; then
-    sudo chmod 644 /Library/LaunchAgents/com.adminhub.guestsetup.plist
-    sudo chown root:wheel /Library/LaunchAgents/com.adminhub.guestsetup.plist
+if [ -f "/Library/LaunchAgents/com.schoolcode.guestsetup.plist" ]; then
+    sudo chmod 644 /Library/LaunchAgents/com.schoolcode.guestsetup.plist
+    sudo chown root:wheel /Library/LaunchAgents/com.schoolcode.guestsetup.plist
 fi
 
  

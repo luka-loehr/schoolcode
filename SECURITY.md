@@ -2,251 +2,87 @@
 Copyright (c) 2025 Luka Löhr
 -->
 
-# AdminHub Security Architecture
+# SchoolCode Security Architecture
 
 ## Overview
 
-AdminHub provides development tools to Guest users while maintaining strict security boundaries. This document explains the security model, design decisions, and why certain operations are blocked while others are allowed.
+SchoolCode provides a secure development environment for Guest users on shared macOS machines. This document details the security model, design decisions, and how specific tools are managed to ensure system integrity while allowing students freedom to experiment.
 
-## The Challenge
+## Core Security Principle
 
-In educational environments, we need to balance two competing requirements:
-1. **Freedom to Learn**: Students should be able to experiment and install packages
-2. **System Integrity**: Each student must get a clean, working environment
+All Guest user modifications are designed to be:
 
-The key insight: **Not all package managers are created equal** when it comes to user isolation.
+*   **Session-isolated**: Changes affect only the current user's session.
+*   **Temporary**: All modifications reset upon Guest logout.
+*   **Non-destructive**: Guest users cannot break core system tools or configurations for other users.
 
-## Security Model
+This model ensures a clean, predictable, and functional environment for every student, every time.
 
-### Core Principle
-All Guest user modifications must be:
-- **Session-isolated**: Changes affect only the current user
-- **Temporary**: Everything resets on logout
-- **Non-destructive**: Cannot break tools for other users
-
-### Why This Matters
-Imagine a classroom scenario:
-- Student A logs in at 9 AM, tries to install a package
-- Student B logs in at 10 AM, expects working tools
-- If Student A could modify system tools, Student B gets a broken environment
-
-## Package Manager Security Analysis
+## Tool-Specific Security Analysis
 
 ### 🟢 Python/pip - User Isolation Supported
 
-Python's pip has built-in support for user-specific installations:
+Python's `pip` natively supports user-specific installations (`pip install --user`), which install packages to the user's home directory (`~/.local/`).
 
-```bash
-pip install --user package_name
-# Installs to ~/.local/lib/python3.x/site-packages/
-```
-
-**Why we allow it:**
-- `--user` flag enables true isolation
-- Packages install to user's home directory
-- macOS automatically cleans Guest home on logout
-- No risk to system Python or other users
-
-**Our implementation:**
-- Force `PIP_USER=1` environment variable
-- Auto-add `--user` flag if missing
-- Block system-wide flags like `--target /usr/local`
+*   **Implementation**: SchoolCode forces `PIP_USER=1` and automatically adds the `--user` flag to `pip install` commands. It blocks system-wide installation attempts.
+*   **Rationale**: This allows students to install Python packages for their projects without affecting the system Python or other users, and ensures these installations are temporary.
 
 ### 🔴 Homebrew - System-Wide Only
 
-Homebrew does NOT support user-specific installations:
+Homebrew installs packages system-wide (`/opt/homebrew/` or `/usr/local/`) and lacks native user-specific installation support.
 
-```bash
-brew install package_name
-# ALWAYS installs to /opt/homebrew/ (Apple Silicon) or /usr/local/ (Intel)
-```
-
-**Why we must block it:**
-1. **No user isolation**: Homebrew has no `--user` equivalent
-2. **Shared installation**: All users share the same Homebrew prefix
-3. **Persistence**: Packages remain after Guest logout
-4. **Dependency conflicts**: Student A installs node@16, Student B needs node@18
-5. **Potential for damage**: `brew uninstall python` breaks AdminHub itself
-
-**Real-world example:**
-```bash
-# Guest user runs:
-brew install node
-brew uninstall python
-brew upgrade --force
-
-# Result:
-# - Node persists for all future users (unexpected tool)
-# - Python is gone (AdminHub broken)
-# - Random packages upgraded (compatibility issues)
-```
+*   **Implementation**: SchoolCode strictly blocks all Homebrew commands that modify the system (e.g., `install`, `uninstall`, `upgrade`, `update`, `link`, `unlink`). Read-only commands (e.g., `list`, `info`, `search`) are permitted.
+*   **Rationale**: To prevent shared installation conflicts, persistence of unwanted packages, and potential damage to core tools or system stability.
 
 ### 🟡 NPM - Conditional Support
 
-NPM supports both modes:
-```bash
-npm install package       # Local to project (allowed)
-npm install -g package    # Global install (blocked)
-```
+NPM supports both local (project-specific) and global installations (`npm install -g`).
 
-**Our approach:**
-- Allow local project installs
-- Block `-g` (global) flag
-- Set `NPM_CONFIG_PREFIX` to user directory
+*   **Implementation**: SchoolCode allows local project installations but blocks global installations (`-g` flag) by setting `NPM_CONFIG_PREFIX` to a user-specific directory.
+*   **Rationale**: Enables project-level dependency management while preventing system-wide package conflicts.
 
 ### 🟢 Git - Configuration Isolation
 
-Git already separates user and system configuration:
-```bash
-git config --global   # User-specific (~/.gitconfig) ✓
-git config --system   # System-wide (/etc/gitconfig) ✗
+Git inherently separates user-specific (`~/.gitconfig`) and system-wide (`/etc/gitconfig`) configurations.
+
+*   **Implementation**: SchoolCode leverages Git's native isolation. Guest users can configure Git globally for their session, but cannot modify system-wide Git settings.
+*   **Rationale**: Allows personalized Git usage without impacting system-level configurations.
+
+## Security Wrapper Architecture
+
+SchoolCode employs a wrapper architecture to enforce these rules, primarily located in `/opt/admin-tools/` (or `/opt/schoolcode/` post-rename):
+
 ```
-
-## Implementation Details
-
-### Security Wrapper Architecture
-
-```
-/opt/admin-tools/
-├── bin/              # Symlinks to wrappers
-│   ├── brew -> ../wrappers/brew
-│   ├── pip -> ../wrappers/pip
-│   └── python -> ../wrappers/python
+/opt/schoolcode/
+├── bin/              # Symlinks to wrappers (e.g., brew -> ../wrappers/brew)
 ├── wrappers/         # Security wrapper scripts
-│   ├── brew         # Blocks modifications
-│   ├── pip          # Forces --user
+│   ├── brew         # Blocks system modifications
+│   ├── pip          # Forces --user installations
 │   └── python       # Sets secure environment
-└── actual/bin/       # Real tool symlinks
-    ├── brew -> /opt/homebrew/bin/brew
-    ├── pip -> /opt/homebrew/bin/pip
-    └── python -> /opt/homebrew/bin/python
+└── actual/bin/       # Symlinks to real tool executables
 ```
 
-### Brew Wrapper Logic
+*   **Function**: When a Guest user executes a command like `brew`, the symlink in `/opt/schoolcode/bin/` points to the wrapper script. This script then applies the defined security logic before (or instead of) executing the `actual` tool.
 
-```bash
-case "$1" in
-    # Blocked: Modifications
-    install|uninstall|upgrade|update|tap|untap|link|unlink)
-        echo "❌ Error: System-wide modifications are not allowed"
-        exit 1
-        ;;
-    # Allowed: Read-only operations
-    list|info|search|doctor|config)
-        exec "$ACTUAL_BREW" "$@"
-        ;;
-esac
-```
+## Why Not Allow `brew install` with Cleanup?
 
-### Pip Wrapper Logic
+A common question is why Homebrew installations by Guest users are not allowed, even with a cleanup mechanism on logout. The reasons are complex and critical for system stability:
 
-```bash
-# Force user installation
-export PIP_USER=1
+1.  **Dependency Problem**: Homebrew installations often bring in numerous dependencies. Tracking and reliably removing all of these, including shared libraries, without breaking other tools (including SchoolCode itself) is extremely difficult and prone to error.
+2.  **Version Conflict Problem**: Allowing Guest users to install different versions of tools (e.g., `python@3.12` when the system uses `python@3.11`) creates version conflicts that are hard to manage and can lead to unpredictable behavior for subsequent users.
+3.  **Irreversible Upgrades**: `brew upgrade` can permanently alter system-level tools. Reverting such changes is often impossible, leading to persistent instability.
+4.  **Formula Modification Problem**: Malicious or accidental `brew tap` and `brew install --force` operations could replace core tools with modified versions, creating severe security risks that are nearly impossible to detect or undo.
 
-# Auto-add --user flag
-if [[ "$1" == "install" ]] && [[ "$*" != *"--user"* ]]; then
-    set -- "$1" --user "${@:2}"
-fi
+## Why the Current Approach is Better
 
-exec "$ACTUAL_PIP" "$@"
-```
+By strictly blocking Homebrew modifications and enforcing user-local installations for other tools, SchoolCode achieves:
 
-## Why Not Allow brew install with Cleanup?
-
-A common question: "Why not track what Guest installs and remove it on logout?"
-
-### The Dependency Problem
-
-When you install a package with Homebrew, it often installs dependencies:
-
-```bash
-# Guest installs:
-brew install node
-
-# Homebrew actually installs:
-# - node (what user wanted)
-# - icu4c (Unicode library)
-# - openssl@3 (SSL library)  
-# - ca-certificates (Root certificates)
-```
-
-If we remove all of these on logout, we might break AdminHub tools that depend on the same libraries.
-
-### The Version Conflict Problem
-
-```bash
-# AdminHub uses:
-python@3.11
-
-# Guest installs:
-brew install python@3.12
-
-# Result: Two Python versions
-# Problem: Which one should pip use?
-# Bigger problem: brew upgrade python would upgrade AdminHub's Python!
-```
-
-### The Upgrade Problem
-
-Upgrades are irreversible:
-
-```bash
-# Guest runs:
-brew upgrade python
-
-# This upgrades system Python from 3.11 to 3.12
-# Cannot "downgrade" back - original version is gone
-# AdminHub might break if not compatible with 3.12
-```
-
-### The Formula Modification Problem
-
-```bash
-# Guest runs:
-brew tap some-random/tap
-brew install some-random/modified-python --force
-
-# This could replace AdminHub's Python with a modified version
-# No way to detect this happened
-```
-
-### Why Current Approach is Better
-
-By blocking brew modifications entirely:
-1. **Zero maintenance** - No cleanup needed
-2. **Guaranteed stability** - Tools always work
-3. **Fast logouts** - No cleanup process
-4. **No conflicts** - One version of everything
-5. **Predictable** - Every student gets identical environment
-
-## Security Benefits
-
-Our approach provides:
-
-1. **Predictable Environment**: Every student gets identical tools
-2. **No Accumulation**: System doesn't bloat over time
-3. **Damage Prevention**: Students cannot break core tools
-4. **Simple Mental Model**: "You can experiment, but only in your space"
-5. **Zero Maintenance**: No manual cleanup needed
-
-## Educational Advantages
-
-This security model actually enhances learning:
-
-1. **Safe Experimentation**: Students can try pip packages without fear
-2. **Consistent Experience**: All students get the same environment
-3. **Focus on Code**: No time wasted on broken environments
-4. **Real-World Practice**: Mirrors corporate environments with restrictions
+*   **Zero Maintenance**: No complex cleanup processes are needed.
+*   **Guaranteed Stability**: Core tools and system configurations remain untouched.
+*   **Predictable Environment**: Every student starts with an identical, fully functional development environment.
+*   **Damage Prevention**: Students cannot accidentally or intentionally break the system for others.
+*   **Enhanced Learning**: Students can focus on coding and experimentation without worrying about system integrity.
 
 ## Summary
 
-The key insight is that **pip supports user isolation, but Homebrew does not**. By blocking Homebrew modifications while allowing pip user installs, we achieve the perfect balance:
-
-- ✅ Students can install Python packages for their projects
-- ✅ Each session starts fresh and clean
-- ✅ No student can break tools for others
-- ✅ System remains stable and predictable
-- ✅ Zero maintenance required
-
-This isn't a limitation—it's a feature that ensures every student gets a working environment every time.
+SchoolCode's security model is built on the principle of **strict isolation for Guest user modifications**. By leveraging tool-specific wrappers and the ephemeral nature of Guest accounts, it provides a robust, low-maintenance, and secure platform for educational environments, ensuring a consistent and safe experience for every student.

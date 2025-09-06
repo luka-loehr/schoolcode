@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# Python utilities for AdminHub
+# Python utilities for SchoolCode
 # Functions to detect and work with official Python installations
 
 # Function to find the installed official Python version

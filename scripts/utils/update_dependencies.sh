@@ -1,8 +1,8 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Dependency Update Utility
-# Updates all dependencies that AdminHub relies on
+# SchoolCode Dependency Update Utility
+# Updates all dependencies that SchoolCode relies on
 
 set -euo pipefail
 

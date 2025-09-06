@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# Official Python Installer for AdminHub
+# Official Python Installer for SchoolCode
 # Downloads and installs Python from python.org
 
 set -euo pipefail

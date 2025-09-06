@@ -1,13 +1,13 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Guest Tools Manager
+# SchoolCode Guest Tools Manager
 # This script manages the development tools for the Guest account
 
 ADMIN_TOOLS_DIR="/opt/admin-tools"
 GUEST_TOOLS_DIR="/Users/Guest/tools"
-LAUNCHAGENT_PLIST="/Library/LaunchAgents/com.adminhub.guesttools.plist"
-TERMINAL_PLIST="/Library/LaunchAgents/com.adminhub.guestterminal.plist"
+LAUNCHAGENT_PLIST="/Library/LaunchAgents/com.schoolcode.guesttools.plist"
+TERMINAL_PLIST="/Library/LaunchAgents/com.schoolcode.guestterminal.plist"
 
 # Color codes
 GREEN='\033[0;32m'
@@ -16,7 +16,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 print_header() {
-    echo -e "${GREEN}AdminHub Guest Tools Manager${NC}"
+    echo -e "${GREEN}SchoolCode Guest Tools Manager${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "© 2025 Luka Löhr"
     echo ""
@@ -115,7 +115,7 @@ case $COMMAND in
             if [[ ! "$response" =~ ^[yY]$ ]]; then
                 echo ""
                 echo -e "${RED}❌ Setup cancelled.${NC}"
-                echo "The tools must be installed for AdminHub."
+                echo "The tools must be installed for SchoolCode."
                 exit 1
             fi
             
@@ -152,7 +152,7 @@ case $COMMAND in
             fi
             
             # Create temporary script for other tools installation
-            INSTALL_SCRIPT="/tmp/adminhub_install_tools.sh"
+            INSTALL_SCRIPT="/tmp/schoolcode_install_tools.sh"
             cat > "$INSTALL_SCRIPT" << 'INSTALLEOF'
 #!/bin/bash
 echo "📦 Installing other tools via Homebrew..."
@@ -343,11 +343,7 @@ INSTALLEOF
         PROFILE="$HOME/.zprofile"
         
         # Add to PATH if not already there
-        if ! grep -q "$GUEST_TOOLS_DIR/bin" "$PROFILE" 2>/dev/null; then
-            echo "" >> "$PROFILE"
-            echo "# AdminHub Guest Tools" >> "$PROFILE"
-            echo "export PATH=\"$GUEST_TOOLS_DIR/bin:\$PATH\"" >> "$PROFILE"
-        fi
+        if ! grep -q "$GUEST_TOOLS_DIR/bin" "$PROFILE" 2>/dev/null; then            echo "" >> "$PROFILE"            echo "# SchoolCode Guest Tools" >> "$PROFILE"            echo "export PATH=\"$GUEST_TOOLS_DIR/bin:\$PATH\"" >> "$PROFILE"        fi
         
         echo ""
         echo -e "${GREEN}✅ Guest tools setup complete!${NC}"
@@ -366,7 +362,7 @@ INSTALLEOF
             
             # Remove from profile
             if [ -f "$HOME/.zprofile" ]; then
-                sed -i '' '/# AdminHub Guest Tools/,+1d' "$HOME/.zprofile" 2>/dev/null || true
+                sed -i '' '/# SchoolCode Guest Tools/,+1d' "$HOME/.zprofile" 2>/dev/null || true
                 echo "✅ Cleaned .zprofile"
             fi
         else
@@ -391,7 +387,7 @@ INSTALLEOF
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.adminhub.guestterminal</string>
+    <string>com.schoolcode.guestterminal</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/open_guest_terminal</string>
@@ -401,9 +397,9 @@ INSTALLEOF
     <key>UserName</key>
     <string>Guest</string>
     <key>StandardOutPath</key>
-    <string>/tmp/adminhub-terminal.log</string>
+    <string>/tmp/schoolcode-terminal.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/adminhub-terminal.err</string>
+    <string>/tmp/schoolcode-terminal.err</string>
 </dict>
 </plist>
 EOF

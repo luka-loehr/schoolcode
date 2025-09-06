@@ -1,13 +1,13 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Centralized Logging System (Bash 3.2 Compatible)
-# Provides structured logging functions for all AdminHub scripts
+# SchoolCode Centralized Logging System (Bash 3.2 Compatible)
+# Provides structured logging functions for all SchoolCode scripts
 
 # Log configuration
-LOG_DIR="/var/log/adminhub"
-LOG_FILE="$LOG_DIR/adminhub.log"
-ERROR_LOG="$LOG_DIR/adminhub-error.log"
+LOG_DIR="/var/log/schoolcode"
+LOG_FILE="$LOG_DIR/schoolcode.log"
+ERROR_LOG="$LOG_DIR/schoolcode-error.log"
 SETUP_LOG="$LOG_DIR/guest-setup.log"
 
 # Ensure log directory exists
@@ -35,7 +35,7 @@ LOG_LEVEL_ERROR=3
 LOG_LEVEL_FATAL=4
 
 # Current log level (default INFO)
-CURRENT_LOG_LEVEL=${ADMINHUB_LOG_LEVEL:-1}
+CURRENT_LOG_LEVEL=${SCHOOLCODE_LOG_LEVEL:-1}
 
 # Function to get timestamp
 get_timestamp() {
@@ -105,7 +105,7 @@ write_log() {
 # Specific logging functions
 log_debug() {
     local color=$(get_level_color "DEBUG")
-    write_log "DEBUG" "$1" "$LOG_FILE" "$color" "${ADMINHUB_DEBUG:-false}"
+    write_log "DEBUG" "$1" "$LOG_FILE" "$color" "${SCHOOLCODE_DEBUG:-false}"
 }
 
 log_info() {
@@ -197,7 +197,7 @@ show_logs() {
             [[ -f "$SETUP_LOG" ]] && tail -n "$lines" "$SETUP_LOG"
             ;;
         "all"|*)
-            echo "=== Recent AdminHub Logs ==="
+            echo "=== Recent SchoolCode Logs ==="
             [[ -f "$LOG_FILE" ]] && tail -n "$lines" "$LOG_FILE"
             ;;
     esac
@@ -205,7 +205,7 @@ show_logs() {
 
 # Function to clear logs
 clear_logs() {
-    log_info "Clearing AdminHub logs"
+    log_info "Clearing SchoolCode logs"
     > "$LOG_FILE" 2>/dev/null || true
     > "$ERROR_LOG" 2>/dev/null || true
     > "$SETUP_LOG" 2>/dev/null || true

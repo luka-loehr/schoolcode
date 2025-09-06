@@ -1,13 +1,13 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Quick Installation
+# SchoolCode Quick Installation
 # Installs everything needed in one step
 
 set -e
 
 echo "╔═══════════════════════════════════════╗"
-echo "║        🚀 AdminHub Setup 🚀           ║"
+echo "║        🚀 SchoolCode Setup 🚀           ║"
 echo "╚═══════════════════════════════════════╝"
 echo ""
 
@@ -19,7 +19,7 @@ fi
 
 # Step 1: Main installation
 echo "📦 Step 1/2: Installing development tools..."
-ADMINHUB_CLI_INSTALL="${ADMINHUB_CLI_INSTALL:-false}" ./scripts/install_adminhub.sh
+SCHOOLCODE_CLI_INSTALL="${SCHOOLCODE_CLI_INSTALL:-false}" ./scripts/install_SchoolCode.sh
 
 # Step 2: Activate Guest setup
 echo ""

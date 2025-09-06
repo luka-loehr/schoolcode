@@ -1,8 +1,8 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub System Monitoring and Health Check Utility (Bash 3.2 Compatible)
-# Provides comprehensive monitoring of AdminHub components and tools
+# SchoolCode System Monitoring and Health Check Utility (Bash 3.2 Compatible)
+# Provides comprehensive monitoring of SchoolCode components and tools
 
 # Source dependencies
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
@@ -10,9 +10,9 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 [[ -f "$SCRIPT_DIR/config.sh" ]] && source "$SCRIPT_DIR/config.sh"
 
 # Monitoring configuration
-HEALTH_CHECK_FILE="/var/log/adminhub/health-status.json"
-METRICS_FILE="/var/log/adminhub/metrics.json"
-ALERTS_FILE="/var/log/adminhub/alerts.log"
+HEALTH_CHECK_FILE="/var/log/schoolcode/health-status.json"
+METRICS_FILE="/var/log/schoolcode/metrics.json"
+ALERTS_FILE="/var/log/schoolcode/alerts.log"
 
 # Health check status variables (bash 3.2 compatible)
 HEALTH_OVERALL="unknown"
@@ -172,7 +172,7 @@ check_admin_tools() {
 
 # Function to check LaunchAgent
 check_launchagent() {
-    local plist_file="/Library/LaunchAgents/com.adminhub.guestsetup.plist"
+    local plist_file="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
     
     if [[ ! -f "$plist_file" ]]; then
         set_health_status "launchagent" "unhealthy"
@@ -181,7 +181,7 @@ check_launchagent() {
     fi
     
     # Check if LaunchAgent is loaded
-    if launchctl list 2>/dev/null | grep -q "com.adminhub.guestsetup"; then
+    if launchctl list 2>/dev/null | grep -q "com.schoolcode.guestsetup"; then
         set_health_status "launchagent" "healthy"
         log_debug "LaunchAgent is loaded and running"
         return 0
@@ -418,7 +418,7 @@ validate_system_resources() {
 
 # Function to run all health checks
 run_health_checks() {
-    log_info "Running AdminHub health checks..."
+    log_info "Running SchoolCode health checks..."
     
     local overall_score=0
     local check_count=0
@@ -505,7 +505,7 @@ show_health_status() {
     local show_details="${1:-false}"
     
     echo "╔═══════════════════════════════════════╗"
-    echo "║         AdminHub Health Status        ║"
+    echo "║         SchoolCode Health Status        ║"
     echo "╚═══════════════════════════════════════╝"
     echo ""
     
@@ -604,13 +604,13 @@ check_and_alert() {
     local overall_status=$(get_health_status "overall")
     case "$overall_status" in
         "unhealthy")
-            generate_alerts "error" "AdminHub system is unhealthy - immediate attention required"
+            generate_alerts "error" "SchoolCode system is unhealthy - immediate attention required"
             ;;
         "degraded")
-            generate_alerts "warn" "AdminHub system is degraded - some components need attention"
+            generate_alerts "warn" "SchoolCode system is degraded - some components need attention"
             ;;
         "healthy")
-            generate_alerts "info" "AdminHub system is healthy"
+            generate_alerts "info" "SchoolCode system is healthy"
             ;;
     esac
     

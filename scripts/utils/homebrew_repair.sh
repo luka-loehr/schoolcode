@@ -424,7 +424,7 @@ fix_python() {
     fi
     
     # If official Python is not installed, log a message
-    log_warn "Official Python not found. Python should be installed via the AdminHub installer."
+    log_warn "Official Python not found. Python should be installed via the SchoolCode installer."
     return 0
 }
 

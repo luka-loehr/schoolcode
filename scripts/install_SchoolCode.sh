@@ -1,19 +1,19 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub Main Installation Script
-# This script installs the complete AdminHub system
+# SchoolCode Main Installation Script
+# This script installs the complete SchoolCode system
 # Enhanced with comprehensive support for old Macs (4+ years without updates)
 
 set -e  # Exit on error
 
-echo "🚀 Installing AdminHub..."
+echo "🚀 Installing SchoolCode..."
 echo "Version: 2.1.0 (with old Mac support)"
 echo ""
 
 # Check if running with sudo
 if [ "$EUID" -ne 0 ]; then 
-    echo "❌ Please run with sudo: sudo ./install_adminhub.sh"
+    echo "❌ Please run with sudo: sudo ./install_SchoolCode.sh"
     exit 1
 fi
 
@@ -28,7 +28,7 @@ else
     echo "❌ System compatibility check failed"
     echo ""
     echo "Please review the compatibility report at:"
-    echo "  /tmp/adminhub_compatibility_report.txt"
+    echo "  /tmp/schoolcode_compatibility_report.txt"
     echo ""
     echo -n "Continue anyway? (y/N): "
     read -r response
@@ -115,7 +115,7 @@ chmod +x /opt/admin-tools/utils/python_utils.sh 2>/dev/null || true
 
 # Step 7: Run main setup
 echo ""
-echo "📦 Installing AdminHub tools..."
+echo "📦 Installing SchoolCode tools..."
 ./scripts/setup/guest_tools_setup.sh
 
 # Step 8: Setup security wrappers
@@ -234,7 +234,7 @@ echo "🚀 Installing LaunchAgent and guest setup scripts..."
 echo ""
 if [ "$VERIFY_FAILED" = true ]; then
     echo "⚠️  Installation completed with warnings. Some tools may need manual configuration."
-    echo "   Run 'sudo ./scripts/adminhub-cli.sh status' to check system health."
+    echo "   Run 'sudo ./scripts/SchoolCode-cli.sh status' to check system health."
 else
     echo "✅ Installation completed successfully!"
 fi
@@ -267,7 +267,7 @@ if [ -f "$USER_HOME/.zshrc" ]; then
     # Check if already added
     if ! grep -q "/opt/admin-tools/bin" "$USER_HOME/.zshrc"; then
         echo "" >> "$USER_HOME/.zshrc"
-        echo "# AdminHub Tools" >> "$USER_HOME/.zshrc"
+        echo "# SchoolCode Tools" >> "$USER_HOME/.zshrc"
         if [[ -n "$PYTHON_BIN_DIR" ]]; then
             echo "export PATH=\"/opt/admin-tools/bin:$PYTHON_BIN_DIR:\$PATH\"" >> "$USER_HOME/.zshrc"
         else
@@ -276,19 +276,9 @@ if [ -f "$USER_HOME/.zshrc" ]; then
     fi
 fi
 
-if [ -f "$USER_HOME/.bash_profile" ]; then
-    # Check if already added
-    if ! grep -q "/opt/admin-tools/bin" "$USER_HOME/.bash_profile"; then
-        echo "" >> "$USER_HOME/.bash_profile"
-        echo "# AdminHub Tools" >> "$USER_HOME/.bash_profile"
-        if [[ -n "$PYTHON_BIN_DIR" ]]; then
-            echo "export PATH=\"/opt/admin-tools/bin:$PYTHON_BIN_DIR:\$PATH\"" >> "$USER_HOME/.bash_profile"
-        else
-            echo "export PATH=\"/opt/admin-tools/bin:\$PATH\"" >> "$USER_HOME/.bash_profile"
-        fi
-    fi
+if [ -f "$USER_HOME/.bash_profile" ]; then    # Check if already added    if ! grep -q "/opt/admin-tools/bin" "$USER_HOME/.bash_profile"; then        echo "" >> "$USER_HOME/.bash_profile"        echo "# SchoolCode Tools" >> "$USER_HOME/.bash_profile"        if [[ -n "$PYTHON_BIN_DIR" ]]; then            echo "export PATH=\"/opt/admin-tools/bin:$PYTHON_BIN_DIR:\$PATH\"" >> "$USER_HOME/.bash_profile"        else            echo "export PATH=\"/opt/admin-tools/bin:\$PATH\"" >> "$USER_HOME/.bash_profile"        fi    fi
 fi
 
 
 echo ""
-echo "Next: Run 'sudo ./scripts/adminhub-cli.sh status' to verify installation" 
+echo "Next: Run 'sudo ./scripts/SchoolCode-cli.sh status' to verify installation" 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 #
-# AdminHub Update Script
+# SchoolCode Update Script
 # Pulls latest changes from GitHub and reruns installation
 
 set -euo pipefail
@@ -12,8 +12,8 @@ source "${SCRIPT_DIR}/utils/logging.sh"
 source "${SCRIPT_DIR}/utils/config.sh"
 
 # GitHub repository
-REPO_URL="https://github.com/luka-loehr/AdminHub"
-REPO_NAME="AdminHub"
+REPO_URL="https://github.com/luka-loehr/SchoolCode"
+REPO_NAME="SchoolCode"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -29,10 +29,10 @@ check_git_repo() {
         return 1
     fi
     
-    # Check if this is the AdminHub repository
+    # Check if this is the SchoolCode repository
     local remote_url=$(git config --get remote.origin.url 2>/dev/null || echo "")
-    if [[ ! "$remote_url" =~ "AdminHub" ]]; then
-        log_warn "This doesn't appear to be the AdminHub repository"
+    if [[ ! "$remote_url" =~ "SchoolCode" ]]; then
+        log_warn "This doesn't appear to be the SchoolCode repository"
         log_warn "Remote URL: $remote_url"
         echo -n "Continue anyway? (y/N): "
         read -r response
@@ -56,7 +56,7 @@ check_uncommitted_changes() {
         read -r response
         if [[ "$response" =~ ^[yY]$ ]]; then
             log_info "Stashing local changes..."
-            git stash push -m "AdminHub update stash $(date +%Y%m%d_%H%M%S)"
+            git stash push -m "SchoolCode update stash $(date +%Y%m%d_%H%M%S)"
             return 0
         else
             log_error "Update cancelled. Please commit or stash your changes first."
@@ -75,18 +75,18 @@ get_current_version() {
 
 # Backup current installation
 backup_current_installation() {
-    local backup_dir="/tmp/adminhub_backup_$(date +%Y%m%d_%H%M%S)"
+    local backup_dir="/tmp/schoolcode_backup_$(date +%Y%m%d_%H%M%S)"
     log_info "Creating backup at: $backup_dir"
     
     # Backup configuration
     mkdir -p "$backup_dir/config"
-    if [[ -f "/etc/adminhub/adminhub.conf" ]]; then
-        cp -p "/etc/adminhub/adminhub.conf" "$backup_dir/config/" 2>/dev/null || true
+    if [[ -f "/etc/schoolcode/schoolcode.conf" ]]; then
+        cp -p "/etc/schoolcode/schoolcode.conf" "$backup_dir/config/" 2>/dev/null || true
     fi
     
     # Backup logs
-    if [[ -d "/var/log/adminhub" ]]; then
-        cp -rp "/var/log/adminhub" "$backup_dir/logs" 2>/dev/null || true
+    if [[ -d "/var/log/schoolcode" ]]; then
+        cp -rp "/var/log/schoolcode" "$backup_dir/logs" 2>/dev/null || true
     fi
     
     # Save current version info
@@ -160,13 +160,13 @@ run_post_update_tasks() {
     find "$SCRIPT_DIR" -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null
     
     # Update CLI symlink if needed
-    if [[ -L "/usr/local/bin/adminhub" ]]; then
-        local current_target=$(readlink "/usr/local/bin/adminhub" 2>/dev/null || echo "")
-        local expected_target="$SCRIPT_DIR/adminhub-cli.sh"
+    if [[ -L "/usr/local/bin/schoolcode" ]]; then
+        local current_target=$(readlink "/usr/local/bin/schoolcode" 2>/dev/null || echo "")
+        local expected_target="$SCRIPT_DIR/SchoolCode-cli.sh"
         
         if [[ "$current_target" != "$expected_target" ]]; then
             log_info "Updating CLI symlink..."
-            sudo ln -sf "$expected_target" "/usr/local/bin/adminhub"
+            sudo ln -sf "$expected_target" "/usr/local/bin/schoolcode"
         fi
     fi
     
@@ -193,7 +193,7 @@ update_dependencies() {
 # Main update function
 run_update() {
     echo -e "${BLUE}╔═══════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║       AdminHub Update Utility         ║${NC}"
+    echo -e "${BLUE}║       SchoolCode Update Utility         ║${NC}"
     echo -e "${BLUE}╚═══════════════════════════════════════╝${NC}"
     echo ""
     
@@ -261,8 +261,8 @@ run_update() {
         cd "$(git rev-parse --show-toplevel)"
         
         # Run installation
-        if [[ -f "./scripts/install_adminhub.sh" ]]; then
-            sudo ./scripts/install_adminhub.sh
+        if [[ -f "./scripts/install_SchoolCode.sh" ]]; then
+            sudo ./scripts/install_SchoolCode.sh
         else
             log_error "Installation script not found"
             return 1
@@ -271,7 +271,7 @@ run_update() {
         echo ""
         echo -e "${YELLOW}Update downloaded but not installed.${NC}"
         echo "To complete the installation later, run:"
-        echo "  sudo ./scripts/install_adminhub.sh"
+        echo "  sudo ./scripts/install_SchoolCode.sh"
     fi
     
     echo ""

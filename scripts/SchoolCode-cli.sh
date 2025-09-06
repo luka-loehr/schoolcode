@@ -1,8 +1,8 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# AdminHub CLI Management Tool (Bash 3.2 Compatible)
-# Comprehensive command-line interface for AdminHub administration
+# SchoolCode CLI Management Tool (Bash 3.2 Compatible)
+# Comprehensive command-line interface for SchoolCode administration
 
 set -euo pipefail  # Strict error handling
 
@@ -40,7 +40,7 @@ CLI_NC='\033[0m'
 # Function to print formatted messages
 print_header() {
     echo -e "${CLI_HEADER}╔═══════════════════════════════════════╗"
-    echo -e "║           AdminHub CLI v$SCRIPT_VERSION           ║"
+    echo -e "║           SchoolCode CLI v$SCRIPT_VERSION           ║"
     echo -e "╚═══════════════════════════════════════╝${CLI_NC}"
     echo ""
 }
@@ -64,7 +64,7 @@ print_info() {
 # Function to show help
 show_help() {
     print_header
-    echo "AdminHub - Automated Development Tools for macOS Guest Accounts"
+    echo "SchoolCode - Automated Development Tools for macOS Guest Accounts"
     echo ""
     echo -e "${CLI_BOLD}USAGE:${CLI_NC}"
     echo "  $0 <command> [subcommand] [options]"
@@ -72,9 +72,9 @@ show_help() {
     echo -e "${CLI_BOLD}COMMANDS:${CLI_NC}"
     echo ""
     echo -e "${CLI_INFO}Installation & Setup:${CLI_NC}"
-    echo "  install         Install AdminHub system"
-    echo "  uninstall       Remove AdminHub system"
-    echo "  update          Update AdminHub and all dependencies"
+    echo "  install         Install SchoolCode system"
+    echo "  uninstall       Remove SchoolCode system"
+    echo "  update          Update SchoolCode and all dependencies"
     echo ""
     echo -e "${CLI_INFO}System Management:${CLI_NC}"
     echo "  status          Show system status"
@@ -99,7 +99,7 @@ show_help() {
     echo "  --version       Show version information"
     echo ""
     echo -e "${CLI_BOLD}EXAMPLES:${CLI_NC}"
-    echo "  $0 install              # Install AdminHub"
+    echo "  $0 install              # Install SchoolCode"
     echo "  $0 status --verbose     # Show detailed status"
     echo "  $0 update               # Update to latest version from GitHub"
     echo "  $0 health detailed      # Run detailed health check"
@@ -113,7 +113,7 @@ show_help() {
 # Function to show version
 show_version() {
     print_header
-    echo "AdminHub CLI Version: $SCRIPT_VERSION"
+    echo "SchoolCode CLI Version: $SCRIPT_VERSION"
     echo "© 2025 Luka Löhr"
     echo ""
     echo "System Information:"
@@ -130,11 +130,11 @@ parse_args() {
         case $1 in
             -v|--verbose)
                 VERBOSE=true
-                export ADMINHUB_LOG_LEVEL=0  # Debug level
+                export SCHOOLCODE_LOG_LEVEL=0  # Debug level
                 shift
                 ;;
             -q|--quiet)
-                export ADMINHUB_LOG_LEVEL=3  # Error level only
+                export SCHOOLCODE_LOG_LEVEL=3  # Error level only
                 shift
                 ;;
             --dry-run)
@@ -207,15 +207,15 @@ cmd_install() {
     case "$SUBCOMMAND" in
         ""|"full")
             print_header
-            log_info "Starting AdminHub installation..."
+            log_info "Starting SchoolCode installation..."
             
             if [[ "$DRY_RUN" == "true" ]]; then
                 print_info "Would run: setup.sh"
                 return
             fi
             
-            if ADMINHUB_CLI_INSTALL=true bash "$SCRIPT_DIR/setup.sh"; then
-                print_success "AdminHub installation completed successfully"
+            if SCHOOLCODE_CLI_INSTALL=true bash "$SCRIPT_DIR/setup.sh"; then
+                print_success "SchoolCode installation completed successfully"
                 echo ""
                 # Show health status (no clear to preserve installation logs)
                 print_header
@@ -231,7 +231,7 @@ cmd_install() {
         "tools")
             print_info "Installing tools only..."
             if [[ "$DRY_RUN" == "false" ]]; then
-                ADMINHUB_CLI_INSTALL=true bash "$SCRIPT_DIR/install_adminhub.sh"
+                SCHOOLCODE_CLI_INSTALL=true bash "$SCRIPT_DIR/install_SchoolCode.sh"
             fi
             ;;
         "agent")
@@ -252,13 +252,13 @@ cmd_install() {
 cmd_uninstall() {
     require_root
     
-    confirm_operation "This will remove all AdminHub components from the system."
+    confirm_operation "This will remove all SchoolCode components from the system."
     
-    print_info "Removing AdminHub..."
+    print_info "Removing SchoolCode..."
     if [[ "$DRY_RUN" == "false" ]]; then
-        ADMINHUB_CLI_UNINSTALL=true bash "$SCRIPT_DIR/uninstall.sh"
+        SCHOOLCODE_CLI_UNINSTALL=true bash "$SCRIPT_DIR/uninstall.sh"
     fi
-    print_success "AdminHub uninstallation completed"
+    print_success "SchoolCode uninstallation completed"
     echo ""
     echo "Note: Homebrew and packages (git, python) were NOT removed."
 }
@@ -312,7 +312,7 @@ cmd_config() {
             show_config
             ;;
         "edit")
-            local config_file=$(get_config "USER_CONFIG_FILE" "$HOME/.adminhub.conf")
+            local config_file=$(get_config "USER_CONFIG_FILE" "$HOME/.schoolcode.conf")
             ${EDITOR:-nano} "$config_file"
             print_success "Configuration file opened for editing"
             ;;
@@ -464,15 +464,15 @@ cmd_logs() {
             bash "$SCRIPT_DIR/utils/monitoring.sh" alerts "${OPTIONS[0]:-20}"
             ;;
         "clear")
-            confirm_operation "This will clear all AdminHub logs"
+            confirm_operation "This will clear all SchoolCode logs"
             if [[ "$DRY_RUN" == "false" ]]; then
                 clear_logs
             fi
             print_success "Logs cleared"
             ;;
         "tail")
-            print_info "Tailing AdminHub logs (Ctrl+C to stop)..."
-            tail -f /var/log/adminhub/adminhub.log 2>/dev/null || {
+            print_info "Tailing SchoolCode logs (Ctrl+C to stop)..."
+            tail -f /var/log/schoolcode/schoolcode.log 2>/dev/null || {
                 print_error "Log file not accessible"
                 exit 1
             }
@@ -514,22 +514,22 @@ cmd_permissions() {
 cmd_update() {
     require_root
     
-    print_info "Updating AdminHub and all dependencies..."
+    print_info "Updating SchoolCode and all dependencies..."
     
     if [[ "$DRY_RUN" == "true" ]]; then
-        print_info "Would update AdminHub, Python, Git, Homebrew, and pip"
+        print_info "Would update SchoolCode, Python, Git, Homebrew, and pip"
         return
     fi
     
-    # Update AdminHub first
-    print_info "Pulling latest AdminHub from GitHub..."
+    # Update SchoolCode first
+    print_info "Pulling latest SchoolCode from GitHub..."
     
     # Change to repo directory
     cd "$(dirname "$SCRIPT_DIR")"
     
     # Stash any local changes
     if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-        git stash push -m "AdminHub update stash $(date +%Y%m%d_%H%M%S)" >/dev/null 2>&1
+        git stash push -m "SchoolCode update stash $(date +%Y%m%d_%H%M%S)" >/dev/null 2>&1
     fi
     
     # Pull latest changes
@@ -539,7 +539,7 @@ cmd_update() {
     # Make scripts executable
     find "$SCRIPT_DIR" -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null
     
-    print_success "AdminHub code updated"
+    print_success "SchoolCode code updated"
     
     # Update all dependencies
     print_info "Updating Python, Git, Homebrew, and pip..."
@@ -547,7 +547,7 @@ cmd_update() {
     
     # Run installation to apply updates
     print_info "Applying updates..."
-    bash "$SCRIPT_DIR/install_adminhub.sh"
+    bash "$SCRIPT_DIR/install_SchoolCode.sh"
     
     print_success "Update completed successfully!"
 }

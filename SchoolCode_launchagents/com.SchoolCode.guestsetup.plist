@@ -6,7 +6,7 @@ Copyright (c) 2025 Luka Löhr
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.adminhub.guestsetup</string>
+    <string>com.schoolcode.guestsetup</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/guest_login_setup</string>
@@ -16,8 +16,8 @@ Copyright (c) 2025 Luka Löhr
     <key>UserName</key>
     <string>Guest</string>
     <key>StandardOutPath</key>
-    <string>/tmp/adminhub-setup.log</string>
+    <string>/tmp/schoolcode-setup.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/adminhub-setup.err</string>
+    <string>/tmp/schoolcode-setup.err</string>
 </dict>
 </plist> 

@@ -109,9 +109,9 @@ fi
 # Step 6: Copy utilities to admin tools directory
 echo ""
 echo "🔧 Copying utilities..."
-mkdir -p /opt/admin-tools/utils
-cp scripts/utils/python_utils.sh /opt/admin-tools/utils/ 2>/dev/null || true
-chmod +x /opt/admin-tools/utils/python_utils.sh 2>/dev/null || true
+mkdir -p /opt/schoolcode/utils
+cp scripts/utils/python_utils.sh /opt/schoolcode/utils/ 2>/dev/null || true
+chmod +x /opt/schoolcode/utils/python_utils.sh 2>/dev/null || true
 
 # Step 7: Run main setup
 echo ""
@@ -126,19 +126,19 @@ echo "🔒 Setting up security wrappers..."
 # Step 8b: Fix brew wrapper if needed (temporary fix until wrapper script is updated)
 echo ""
 echo "🔧 Ensuring wrappers use dynamic path detection..."
-if [ -f "/opt/admin-tools/wrappers/brew" ]; then
+if [ -f "/opt/schoolcode/wrappers/brew" ]; then
     # Check if brew wrapper has the old hardcoded path
-    if grep -q "ACTUAL_BREW=\"/opt/admin-tools/actual/bin/brew\"" "/opt/admin-tools/wrappers/brew" 2>/dev/null; then
+    if grep -q "ACTUAL_BREW=\"/opt/schoolcode/actual/bin/brew\"" "/opt/schoolcode/wrappers/brew" 2>/dev/null; then
         echo "   Updating brew wrapper with dynamic detection..."
-        cat > /opt/admin-tools/wrappers/brew << 'EOF'
+        cat > /opt/schoolcode/wrappers/brew << 'EOF'
 #!/bin/bash
 # Homebrew wrapper for Guest users - blocks system modifications
 
 # Find the actual brew executable
 find_actual_brew() {
     # First check if we have a direct symlink
-    if [ -L "/opt/admin-tools/actual/bin/brew" ]; then
-        local target=$(readlink "/opt/admin-tools/actual/bin/brew")
+    if [ -L "/opt/schoolcode/actual/bin/brew" ]; then
+        local target=$(readlink "/opt/schoolcode/actual/bin/brew")
         if [ -x "$target" ]; then
             echo "$target"
             return
@@ -195,7 +195,7 @@ else
     exec "$ACTUAL_BREW" "$@"
 fi
 EOF
-        chmod 755 /opt/admin-tools/wrappers/brew
+        chmod 755 /opt/schoolcode/wrappers/brew
     fi
 fi
 
@@ -216,15 +216,15 @@ VERIFY_FAILED=false
 
 # Check critical symlinks
 for tool in brew python python3 pip pip3 git; do
-    if [ -L "/opt/admin-tools/bin/$tool" ] && [ -e "/opt/admin-tools/bin/$tool" ]; then
+    if [ -L "/opt/schoolcode/bin/$tool" ] && [ -e "/opt/schoolcode/bin/$tool" ]; then
         echo "   ✅ $tool: OK"
-    elif [ -e "/opt/admin-tools/bin/$tool" ]; then
+    elif [ -e "/opt/schoolcode/bin/$tool" ]; then
         echo "   ⚠️  $tool: exists but may need fixing"
     else
         echo "   ❌ $tool: missing"
         VERIFY_FAILED=true
     fi
-done
+}
 
 # Step 10: Install LaunchAgent and guest setup scripts
 echo ""
@@ -257,28 +257,28 @@ fi
 
 # Add PATH for current session
 if [[ -n "$PYTHON_BIN_DIR" ]]; then
-    export PATH="/opt/admin-tools/bin:$PYTHON_BIN_DIR:$PATH"
+    export PATH="/opt/schoolcode/bin:$PYTHON_BIN_DIR:$PATH"
 else
-    export PATH="/opt/admin-tools/bin:$PATH"
+    export PATH="/opt/schoolcode/bin:$PATH"
 fi
 
 # Update shell configuration files
 if [ -f "$USER_HOME/.zshrc" ]; then
     # Check if already added
-    if ! grep -q "/opt/admin-tools/bin" "$USER_HOME/.zshrc"; then
+    if ! grep -q "/opt/schoolcode/bin" "$USER_HOME/.zshrc"; then
         echo "" >> "$USER_HOME/.zshrc"
         echo "# SchoolCode Tools" >> "$USER_HOME/.zshrc"
         if [[ -n "$PYTHON_BIN_DIR" ]]; then
-            echo "export PATH=\"/opt/admin-tools/bin:$PYTHON_BIN_DIR:\$PATH\"" >> "$USER_HOME/.zshrc"
+            echo "export PATH=\"/opt/schoolcode/bin:$PYTHON_BIN_DIR:\$PATH\"" >> "$USER_HOME/.zshrc"
         else
-            echo "export PATH=\"/opt/admin-tools/bin:\$PATH\"" >> "$USER_HOME/.zshrc"
+            echo "export PATH=\"/opt/schoolcode/bin:\$PATH\"" >> "$USER_HOME/.zshrc"
         fi
     fi
 fi
 
-if [ -f "$USER_HOME/.bash_profile" ]; then    # Check if already added    if ! grep -q "/opt/admin-tools/bin" "$USER_HOME/.bash_profile"; then        echo "" >> "$USER_HOME/.bash_profile"        echo "# SchoolCode Tools" >> "$USER_HOME/.bash_profile"        if [[ -n "$PYTHON_BIN_DIR" ]]; then            echo "export PATH=\"/opt/admin-tools/bin:$PYTHON_BIN_DIR:\$PATH\"" >> "$USER_HOME/.bash_profile"        else            echo "export PATH=\"/opt/admin-tools/bin:\$PATH\"" >> "$USER_HOME/.bash_profile"        fi    fi
+if [ -f "$USER_HOME/.bash_profile" ]; then    # Check if already added    if ! grep -q "/opt/schoolcode/bin" "$USER_HOME/.bash_profile"; then        echo "" >> "$USER_HOME/.bash_profile"        echo "# SchoolCode Tools" >> "$USER_HOME/.bash_profile"        if [[ -n "$PYTHON_BIN_DIR" ]]; then            echo "export PATH=\"/opt/schoolcode/bin:$PYTHON_BIN_DIR:\$PATH\"" >> "$USER_HOME/.bash_profile"        else            echo "export PATH=\"/opt/schoolcode/bin:\$PATH\"" >> "$USER_HOME/.bash_profile"        fi    fi
 fi
 
 
 echo ""
-echo "Next: Run 'sudo ./scripts/SchoolCode-cli.sh status' to verify installation" 
+echo "Next: Run 'sudo ./scripts/SchoolCode-cli.sh status' to verify installation"

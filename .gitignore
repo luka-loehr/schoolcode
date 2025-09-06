@@ -1,4 +1,4 @@
-# AdminHub - macOS Development Tools Automation
+# SchoolCode - macOS Development Tools Automation
 # .gitignore for clean repository
 
 # macOS system files
@@ -14,9 +14,9 @@ Thumbs.db
 *.out
 *.err
 
-# AdminHub logs
-/var/log/adminhub/
-/tmp/adminhub-*
+# SchoolCode logs
+/var/log/schoolcode/
+/tmp/schoolcode-*
 
 # Temporary files
 *.tmp
@@ -30,7 +30,7 @@ Thumbs.db
 
 # Cache files
 scripts/utils/.cache/
-/tmp/adminhub_config_cache.*
+/tmp/schoolcode_config_cache.*
 
 # IDE files
 .vscode/
@@ -52,7 +52,7 @@ coverage/
 .env.local
 
 # User-specific configuration
-.adminhub.conf.local
+.schoolcode.conf.local
 
 # macOS
 .AppleDouble
@@ -143,11 +143,11 @@ fastlane/test_output
 # Code Injection
 iOSInjectionProject/
 
-# AdminHub specific
+# SchoolCode specific
 *.db
 *.db-journal
 *.db-wal
-.adminhub/
+.schoolcode/
 config.local.json
 ssh_keys/
 

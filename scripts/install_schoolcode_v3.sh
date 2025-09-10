@@ -24,6 +24,7 @@ set -euo pipefail  # Exit on error, undefined variables, and pipe failures
 readonly SCRIPT_VERSION="3.0.0"
 readonly SCRIPT_NAME=$(basename "$0")
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Installation paths
 INSTALL_PREFIX="/opt/schoolcode"
@@ -611,11 +612,25 @@ repair_homebrew() {
 install_python() {
     log INFO "Installing Python..."
     
-    # Check if Python is already installed
-    if command -v python3 &>/dev/null; then
-        PYTHON_VERSION=$(python3 --version 2>/dev/null | awk '{print $2}')
-        log SUCCESS "Python ${PYTHON_VERSION} already installed"
-        return 0
+    # First, try to install official Python from python.org
+    log INFO "Attempting to install official Python from python.org..."
+    if install_python_official; then
+        log SUCCESS "Official Python installed successfully"
+    else
+        log WARN "Could not install official Python, falling back to Homebrew"
+        
+        # Fall back to Homebrew if official installation fails
+        if command -v brew &>/dev/null; then
+            show_progress "Installing Python via Homebrew"
+            brew install python3 2>/dev/null || {
+                log ERROR "Failed to install Python via Homebrew"
+                return 1
+            }
+            complete_progress
+        else
+            log ERROR "No method available to install Python"
+            return 1
+        fi
     fi
     
     if [[ "$DRY_RUN" == "true" ]]; then
@@ -623,21 +638,15 @@ install_python() {
         return 0
     fi
     
-    # Try to install via Homebrew first
-    if command -v brew &>/dev/null; then
-        show_progress "Installing Python via Homebrew"
-        brew install python3 2>/dev/null || {
-            log WARN "Could not install Python via Homebrew"
-            # Fall back to official installer
-            install_python_official
-        }
-        complete_progress
+    # Verify Python installation
+    if command -v python3 &>/dev/null; then
+        PYTHON_VERSION=$(python3 --version 2>/dev/null | awk '{print $2}')
+        log SUCCESS "Python ${PYTHON_VERSION} is available"
     else
-        install_python_official
+        log ERROR "Python installation verification failed"
+        return 1
     fi
     
-    PYTHON_VERSION=$(python3 --version 2>/dev/null | awk '{print $2}')
-    log SUCCESS "Python ${PYTHON_VERSION} installed"
     return 0
 }
 
@@ -645,8 +654,16 @@ install_python() {
 install_python_official() {
     log INFO "Installing Python from python.org..."
     
-    local python_pkg_url="https://www.python.org/ftp/python/3.12.0/python-3.12.0-macos11.pkg"
+    # Use Python 3.12.7 (latest stable as of writing)
+    local python_version="3.12.7"
+    local python_pkg_url="https://www.python.org/ftp/python/${python_version}/python-${python_version}-macos11.pkg"
     local python_pkg="/tmp/python-installer.pkg"
+    
+    # Check if official Python is already installed
+    if [[ -f "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3" ]]; then
+        log SUCCESS "Official Python already installed"
+        return 0
+    fi
     
     # Download Python installer
     show_progress "Downloading Python installer"
@@ -666,6 +683,11 @@ install_python_official() {
     complete_progress
     
     rm -f "$python_pkg"
+    
+    # Update PATH for official Python
+    export PATH="/Library/Frameworks/Python.framework/Versions/3.12/bin:$PATH"
+    
+    log SUCCESS "Official Python ${python_version} installed"
     return 0
 }
 
@@ -680,7 +702,7 @@ setup_schoolcode_tools() {
     
     # Create directory structure
     show_progress "Creating directory structure"
-    mkdir -p "$INSTALL_PREFIX"/{bin,lib,config,wrappers,actual/bin}
+    mkdir -p "$INSTALL_PREFIX"/{bin,lib,config,wrappers,actual/bin,scripts}
     mkdir -p "$CONFIG_DIR"
     complete_progress
     
@@ -692,6 +714,22 @@ setup_schoolcode_tools() {
     if [[ -d "$SCRIPT_DIR/setup" ]]; then
         cp -r "$SCRIPT_DIR/setup" "$INSTALL_PREFIX/" 2>/dev/null || true
     fi
+    
+    # Copy update and uninstall scripts
+    if [[ -f "$SCRIPT_DIR/schoolcode_update.sh" ]]; then
+        cp "$SCRIPT_DIR/schoolcode_update.sh" "$INSTALL_PREFIX/scripts/" 2>/dev/null || true
+        chmod +x "$INSTALL_PREFIX/scripts/schoolcode_update.sh" 2>/dev/null || true
+    fi
+    if [[ -f "$SCRIPT_DIR/uninstall_schoolcode.sh" ]]; then
+        cp "$SCRIPT_DIR/uninstall_schoolcode.sh" "$INSTALL_PREFIX/scripts/" 2>/dev/null || true
+        chmod +x "$INSTALL_PREFIX/scripts/uninstall_schoolcode.sh" 2>/dev/null || true
+    fi
+    
+    # Copy version file
+    if [[ -f "$PROJECT_ROOT/version.txt" ]]; then
+        cp "$PROJECT_ROOT/version.txt" "$INSTALL_PREFIX/" 2>/dev/null || true
+    fi
+    
     complete_progress
     
     # Create symlinks for tools
@@ -711,10 +749,66 @@ setup_schoolcode_tools() {
 create_tool_symlinks() {
     log DEBUG "Creating tool symlinks..."
     
+    # First, try to find official Python if installed
+    local official_python3=""
+    local official_python=""
+    local official_pip3=""
+    local official_pip=""
+    
+    # Check for official Python from python.org (usually in /Library/Frameworks)
+    if [[ -f "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" ]]; then
+        official_python3="/Library/Frameworks/Python.framework/Versions/Current/bin/python3"
+        official_python="/Library/Frameworks/Python.framework/Versions/Current/bin/python"
+        official_pip3="/Library/Frameworks/Python.framework/Versions/Current/bin/pip3"
+        official_pip="/Library/Frameworks/Python.framework/Versions/Current/bin/pip"
+        log DEBUG "Found official Python from python.org"
+    fi
+    
     local tools=("brew" "python" "python3" "pip" "pip3" "git")
     
     for tool in "${tools[@]}"; do
-        local tool_path=$(which "$tool" 2>/dev/null || true)
+        local tool_path=""
+        
+        # Use official Python if available
+        case "$tool" in
+            python3)
+                if [[ -n "$official_python3" ]] && [[ -f "$official_python3" ]]; then
+                    tool_path="$official_python3"
+                else
+                    tool_path=$(which python3 2>/dev/null || true)
+                fi
+                ;;
+            python)
+                if [[ -n "$official_python" ]] && [[ -f "$official_python" ]]; then
+                    tool_path="$official_python"
+                elif [[ -n "$official_python3" ]] && [[ -f "$official_python3" ]]; then
+                    # Fallback to python3 if python doesn't exist
+                    tool_path="$official_python3"
+                else
+                    tool_path=$(which python 2>/dev/null || which python3 2>/dev/null || true)
+                fi
+                ;;
+            pip3)
+                if [[ -n "$official_pip3" ]] && [[ -f "$official_pip3" ]]; then
+                    tool_path="$official_pip3"
+                else
+                    tool_path=$(which pip3 2>/dev/null || true)
+                fi
+                ;;
+            pip)
+                if [[ -n "$official_pip" ]] && [[ -f "$official_pip" ]]; then
+                    tool_path="$official_pip"
+                elif [[ -n "$official_pip3" ]] && [[ -f "$official_pip3" ]]; then
+                    # Fallback to pip3 if pip doesn't exist
+                    tool_path="$official_pip3"
+                else
+                    tool_path=$(which pip 2>/dev/null || which pip3 2>/dev/null || true)
+                fi
+                ;;
+            *)
+                tool_path=$(which "$tool" 2>/dev/null || true)
+                ;;
+        esac
         
         if [[ -n "$tool_path" ]]; then
             # Create actual symlink
@@ -729,9 +823,32 @@ create_tool_symlinks() {
                 ln -sf "$tool_path" "$INSTALL_PREFIX/bin/$tool" 2>/dev/null || true
             fi
             
-            log DEBUG "Created symlink for $tool"
+            log DEBUG "Created symlink for $tool -> $tool_path"
         else
-            log WARN "Tool not found: $tool"
+            # Create fallback symlinks for missing tools
+            case "$tool" in
+                python)
+                    # If python doesn't exist, link it to python3
+                    if [[ -L "$INSTALL_PREFIX/bin/python3" ]] || [[ -f "$INSTALL_PREFIX/bin/python3" ]]; then
+                        ln -sf "$INSTALL_PREFIX/bin/python3" "$INSTALL_PREFIX/bin/python" 2>/dev/null || true
+                        log DEBUG "Created fallback symlink: python -> python3"
+                    else
+                        log WARN "Tool not found: $tool"
+                    fi
+                    ;;
+                pip)
+                    # If pip doesn't exist, create wrapper that redirects to pip3
+                    if [[ -f "$INSTALL_PREFIX/wrappers/pip3" ]]; then
+                        ln -sf "$INSTALL_PREFIX/wrappers/pip3" "$INSTALL_PREFIX/bin/pip" 2>/dev/null || true
+                        log DEBUG "Created fallback symlink: pip -> pip3 wrapper"
+                    else
+                        log WARN "Tool not found: $tool"
+                    fi
+                    ;;
+                *)
+                    log WARN "Tool not found: $tool"
+                    ;;
+            esac
         fi
     done
 }
@@ -803,18 +920,47 @@ EOF
     
     chmod 755 "$INSTALL_PREFIX/wrappers/brew"
     
-    # Create pip wrapper
+    # Create pip wrapper for both pip and pip3
     for pip_cmd in pip pip3; do
         cat > "$INSTALL_PREFIX/wrappers/$pip_cmd" << EOF
 #!/bin/bash
 # Pip wrapper for Guest users - forces user installations
 
-# Find actual pip
-ACTUAL_PIP=\$(which $pip_cmd 2>/dev/null || echo "/usr/local/bin/$pip_cmd")
+# Find actual pip - check multiple locations
+find_actual_pip() {
+    # Check for official Python pip first
+    if [[ -x "/Library/Frameworks/Python.framework/Versions/Current/bin/$pip_cmd" ]]; then
+        echo "/Library/Frameworks/Python.framework/Versions/Current/bin/$pip_cmd"
+        return
+    fi
+    
+    # Check symlink in actual/bin
+    if [[ -L "/opt/schoolcode/actual/bin/$pip_cmd" ]]; then
+        local target=\$(readlink "/opt/schoolcode/actual/bin/$pip_cmd")
+        if [[ -x "\$target" ]]; then
+            echo "\$target"
+            return
+        fi
+    fi
+    
+    # Fallback to which
+    which $pip_cmd 2>/dev/null || which ${pip_cmd%3}3 2>/dev/null || echo ""
+}
 
-if [[ ! -x "\$ACTUAL_PIP" ]]; then
-    echo "❌ Error: $pip_cmd not found" >&2
-    exit 1
+ACTUAL_PIP=\$(find_actual_pip)
+
+if [[ -z "\$ACTUAL_PIP" ]] || [[ ! -x "\$ACTUAL_PIP" ]]; then
+    # Try the alternate version (pip vs pip3)
+    if [[ "$pip_cmd" == "pip" ]]; then
+        ACTUAL_PIP=\$(which pip3 2>/dev/null || echo "")
+    else
+        ACTUAL_PIP=\$(which pip 2>/dev/null || echo "")
+    fi
+    
+    if [[ -z "\$ACTUAL_PIP" ]] || [[ ! -x "\$ACTUAL_PIP" ]]; then
+        echo "❌ Error: $pip_cmd not found" >&2
+        exit 1
+    fi
 fi
 
 # Force user installation for Guest users

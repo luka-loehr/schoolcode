@@ -999,7 +999,11 @@ EOF
 #!/bin/bash
 # sudo wrapper: block sudo for Guest users
 
-if [[ "$USER" == "Guest" ]]; then
+# Determine the real current user reliably (ignore spoofed $USER)
+REAL_USER="$(id -un 2>/dev/null || whoami)"
+CONSOLE_USER="$(stat -f "%Su" /dev/console 2>/dev/null || echo "")"
+
+if [[ "$REAL_USER" == "Guest" ]] || [[ "$CONSOLE_USER" == "Guest" ]]; then
   echo "❌ Error: sudo is not permitted for Guest users." >&2
   echo "   This environment is temporary and isolated; administrator actions are disabled." >&2
   exit 1

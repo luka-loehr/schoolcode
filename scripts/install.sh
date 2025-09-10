@@ -988,12 +988,8 @@ if [[ -z "\$ACTUAL_PIP" ]] || [[ ! -x "\$ACTUAL_PIP" ]]; then
     fi
 fi
 
-# Force user installation for Guest users
-if [[ "\$USER" == "Guest" ]]; then
-    exec "\$ACTUAL_PIP" --user "\$@"
-else
-    exec "\$ACTUAL_PIP" "\$@"
-fi
+# Execute pip normally; user installs are controlled via pip.conf for Guest
+exec "\$ACTUAL_PIP" "\$@"
 EOF
         chmod 755 "$INSTALL_PREFIX/wrappers/$pip_cmd"
     done

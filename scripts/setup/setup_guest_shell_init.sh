@@ -26,18 +26,37 @@ chmod 755 /usr/local/bin/guest_login_setup
 
 # Install the LaunchAgent
 echo "🤖 Installing LaunchAgent..."
-# Use the repository's LaunchAgent file and install with the expected lowercase name
-SRC_PLIST="SchoolCode_launchagents/com.SchoolCode.guestsetup.plist"
 DST_PLIST="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
-if [ ! -f "$SRC_PLIST" ]; then
-    echo "❌ LaunchAgent source not found: $SRC_PLIST"
-    exit 1
-fi
-cp "$SRC_PLIST" "$DST_PLIST"
+
+# Write a clean LaunchAgent (no UserName in LaunchAgents)
+cat > "$DST_PLIST" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.schoolcode.guestsetup</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/guest_login_setup</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+    <key>StandardOutPath</key>
+    <string>/tmp/schoolcode-setup.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/schoolcode-setup.err</string>
+</dict>
+</plist>
+EOF
+
+chown root:wheel "$DST_PLIST" 2>/dev/null || true
 chmod 644 "$DST_PLIST"
 
 # Load the LaunchAgent
-launchctl load "$DST_PLIST" 2>/dev/null || true
+# Do not attempt to load for the current user; it will load automatically on login per-user
 
 # Note: The old com.schoolcode.guestterminal.plist is no longer needed
 # Terminal is now opened by the guest_login_setup script

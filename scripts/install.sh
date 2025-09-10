@@ -535,41 +535,34 @@ restore_from_backup() {
 check_homebrew() {
     log INFO "Checking Homebrew installation..."
     
-    if ! command -v brew &>/dev/null; then
-        log ERROR "Homebrew is not installed"
-        
-        if prompt_user "Install Homebrew now?"; then
-            install_homebrew
-        else
-            log ERROR "Homebrew is required for SchoolCode installation"
-            return 1
-        fi
-    else
-        HOMEBREW_VERSION=$(brew --version 2>/dev/null | head -1 | awk '{print $2}')
-        log SUCCESS "Homebrew ${HOMEBREW_VERSION} found"
-        
-        # Run brew doctor to check for issues
-        show_progress "Checking Homebrew health"
-        local brew_health=$(brew doctor 2>&1 || true)
+    # Locate brew even if not in PATH under sudo
+    local brew_bin=""
+    for path in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        [[ -x "$path" ]] && brew_bin="$path" && break
+    done
+    [[ -z "$brew_bin" ]] && brew_bin="$(command -v brew 2>/dev/null || true)"
+    
+    if [[ -z "$brew_bin" ]]; then
+        log WARN "Homebrew not found; continuing (only needed for fallback installs)"
+        return 0
+    fi
+    
+    # Basic version check
+    HOMEBREW_VERSION=$($brew_bin --version 2>/dev/null | head -1 | awk '{print $2}')
+    log SUCCESS "Homebrew ${HOMEBREW_VERSION:-unknown} found"
+    
+    # Optional quick health check (verbose only) with timeout to avoid hangs
+    if [[ "$VERBOSE" == "true" ]]; then
+        show_progress "Checking Homebrew health (quick)"
+        # Use perl alarm as a portable timeout
+        local brew_health
+        brew_health=$(perl -e 'alarm 12; exec @ARGV;' "$brew_bin" doctor 2>&1 || true)
         complete_progress
-        
-        # Check for critical issues that require repair
-        local needs_repair=false
-        if echo "$brew_health" | grep -q "Your system is ready to brew"; then
-            log SUCCESS "Homebrew is healthy"
-        elif echo "$brew_health" | grep -q "Error\|Broken\|Permission denied\|No such file"; then
-            log WARN "Homebrew has critical issues, attempting repair..."
-            needs_repair=true
-        else
-            log INFO "Homebrew has minor warnings but should be functional"
-            # Only show warnings in verbose mode
-            if [[ "$VERBOSE" == "true" ]]; then
-                log DEBUG "Brew doctor output: $brew_health"
-            fi
-        fi
-        
-        if [[ "$needs_repair" == "true" ]]; then
-            repair_homebrew
+        if echo "$brew_health" | grep -qiE "Error|Broken|Permission denied|No such file"; then
+            log WARN "Homebrew reported issues; attempting lightweight cleanup"
+            HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" update-reset >/dev/null 2>&1 || true
+            HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" cleanup >/dev/null 2>&1 || true
+            log SUCCESS "Homebrew cleanup attempted"
         fi
     fi
     

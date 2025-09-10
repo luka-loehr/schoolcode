@@ -13,7 +13,7 @@ CONFIG_FILE="$CONFIG_DIR/schoolcode.conf"
 USER_CONFIG_FILE="$HOME/.schoolcode.conf"
 
 # Default configuration values (bash 3.2 compatible)
-DEFAULT_ADMIN_TOOLS_DIR="/opt/admin-tools"
+DEFAULT_ADMIN_TOOLS_DIR="/opt/schoolcode"
 DEFAULT_GUEST_TOOLS_DIR="/Users/Guest/tools"
 DEFAULT_SCRIPTS_DIR="/usr/local/bin"
 DEFAULT_LAUNCHAGENT_DIR="/Library/LaunchAgents"
@@ -90,7 +90,7 @@ create_default_config() {
 # Lines starting with # are comments
 
 # Paths Configuration
-ADMIN_TOOLS_DIR=/opt/admin-tools
+ADMIN_TOOLS_DIR=/opt/schoolcode
 GUEST_TOOLS_DIR=/Users/Guest/tools
 SCRIPTS_DIR=/usr/local/bin
 LAUNCHAGENT_DIR=/Library/LaunchAgents

@@ -62,6 +62,37 @@ rm -f /tmp/schoolcode-*.log
 rm -f /tmp/schoolcode-*.err
 rm -rf /var/log/schoolcode
 
+# Remove PATH entries from admin user's shell configs
+echo "🧹 Cleaning PATH entries from admin user's shell profiles..."
+
+# Determine the original (admin) user who ran sudo
+ORIGINAL_USER="${SUDO_USER:-$(whoami)}"
+if [ "$ORIGINAL_USER" = "root" ] || [ -z "$ORIGINAL_USER" ]; then
+    ORIGINAL_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+fi
+
+# Resolve the admin user's home directory on macOS
+if [ -n "$ORIGINAL_USER" ]; then
+    USER_HOME=$(dscl . -read /Users/"$ORIGINAL_USER" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+fi
+
+# Fallback if dscl didn't return a path
+if [ -z "$USER_HOME" ] && [ -n "$ORIGINAL_USER" ]; then
+    USER_HOME="/Users/$ORIGINAL_USER"
+fi
+
+if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
+    for shell_config in ".zshrc" ".bashrc" ".bash_profile"; do
+        CONFIG_FILE="$USER_HOME/$shell_config"
+        if [ -f "$CONFIG_FILE" ]; then
+            # Remove the exact block added by installer:
+            #   # SchoolCode Tools (added by installer)
+            #   export PATH="/opt/schoolcode/bin:$PATH"
+            sed -i '' -e '/# SchoolCode Tools (added by installer)/,+1 d' "$CONFIG_FILE" 2>/dev/null || true
+        fi
+    done
+fi
+
 # Only show completion message if not called from CLI
 if [ "$SCHOOLCODE_CLI_UNINSTALL" != "true" ]; then
     echo "✅ Uninstallation completed!"

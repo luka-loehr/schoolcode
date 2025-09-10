@@ -4,7 +4,7 @@
 # SchoolCode Auto-Update Script
 # Provides automatic update checking and self-updating functionality
 #
-# Usage: ./schoolcode_update.sh [OPTIONS]
+# Usage: ./update.sh [OPTIONS]
 # Options:
 #   -c, --check      Check for updates only (don't install)
 #   -f, --force      Force update even if already up-to-date
@@ -126,7 +126,7 @@ ${GREEN}EXAMPLES:${NC}
 
 ${GREEN}AUTOMATIC UPDATES:${NC}
     To enable automatic updates, add to crontab:
-    0 2 * * * /opt/schoolcode/scripts/schoolcode_update.sh --quiet
+    0 2 * * * /opt/schoolcode/scripts/update.sh --quiet
 
 EOF
 }
@@ -215,9 +215,9 @@ cleanup() {
 get_current_version() {
     if [[ -f "$VERSION_FILE" ]]; then
         cat "$VERSION_FILE"
-    elif [[ -f "$INSTALL_PREFIX/scripts/install_schoolcode_v3.sh" ]]; then
+    elif [[ -f "$INSTALL_PREFIX/scripts/install.sh" ]]; then
         # Try to extract version from script
-        grep "SCRIPT_VERSION=" "$INSTALL_PREFIX/scripts/install_schoolcode_v3.sh" | head -1 | cut -d'"' -f2
+        grep "SCRIPT_VERSION=" "$INSTALL_PREFIX/scripts/install.sh" | head -1 | cut -d'"' -f2
     else
         echo "unknown"
     fi
@@ -392,10 +392,10 @@ perform_update() {
     log INFO "Downloading update files..."
     
     local files_to_update=(
-        "scripts/install_schoolcode_v3.sh"
-        "scripts/SchoolCode-cli.sh"
-        "scripts/schoolcode_update.sh"
-        "scripts/uninstall_schoolcode.sh"
+        "scripts/install.sh"
+        "scripts/schoolcode-cli.sh"
+        "scripts/update.sh"
+        "scripts/uninstall.sh"
         "scripts/utils/logging.sh"
         "scripts/utils/config.sh"
         "scripts/setup/guest_tools_setup.sh"
@@ -446,7 +446,7 @@ perform_update() {
     # Verify update
     log INFO "Verifying update..."
     
-    if [[ -f "$INSTALL_PREFIX/scripts/install_schoolcode_v3.sh" ]]; then
+    if [[ -f "$INSTALL_PREFIX/scripts/install.sh" ]]; then
         log SUCCESS "Update completed successfully to version $latest_version"
         
         # Clean up
@@ -503,7 +503,7 @@ install_update_schedule() {
     <string>com.schoolcode.autoupdate</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$INSTALL_PREFIX/scripts/schoolcode_update.sh</string>
+        <string>$INSTALL_PREFIX/scripts/update.sh</string>
         <string>--quiet</string>
     </array>
     <key>StartCalendarInterval</key>

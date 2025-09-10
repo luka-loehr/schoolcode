@@ -35,16 +35,16 @@ SchoolCode is an automated development tools installer for macOS Guest accounts.
 ### Key Commands
 ```bash
 # Install SchoolCode and its tools
-sudo ./scripts/SchoolCode-cli.sh install
+sudo ./scripts/schoolcode-cli.sh install
 
 # Check system health and status
-sudo ./scripts/SchoolCode-cli.sh status
+sudo ./scripts/schoolcode-cli.sh status
 
 # Update SchoolCode and all managed dependencies
-sudo ./scripts/SchoolCode-cli.sh update
+sudo ./scripts/schoolcode-cli.sh update
 
 # Remove SchoolCode from the system
-sudo ./scripts/SchoolCode-cli.sh uninstall
+sudo ./scripts/schoolcode-cli.sh uninstall
 ```
 
 ## Architecture & Structure
@@ -53,7 +53,7 @@ sudo ./scripts/SchoolCode-cli.sh uninstall
 ```
 SchoolCode/
 ├── scripts/
-│   └── SchoolCode-cli.sh    # Main CLI script
+│   └── scripts/schoolcode-cli.sh    # Main CLI script
 ├── config/
 │   └── config.sh           # Configuration settings
 ├── tools/

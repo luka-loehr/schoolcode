@@ -231,7 +231,7 @@ cmd_install() {
         "tools")
             print_info "Installing tools only..."
             if [[ "$DRY_RUN" == "false" ]]; then
-                SCHOOLCODE_CLI_INSTALL=true bash "$SCRIPT_DIR/install_SchoolCode.sh"
+                SCHOOLCODE_CLI_INSTALL=true bash "$SCRIPT_DIR/install.sh"
             fi
             ;;
         "agent")
@@ -547,7 +547,7 @@ cmd_update() {
     
     # Run installation to apply updates
     print_info "Applying updates..."
-    bash "$SCRIPT_DIR/install_SchoolCode.sh"
+    bash "$SCRIPT_DIR/install.sh"
     
     print_success "Update completed successfully!"
 }

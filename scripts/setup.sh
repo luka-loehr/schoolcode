@@ -19,7 +19,7 @@ fi
 
 # Step 1: Main installation
 echo "📦 Step 1/2: Installing development tools..."
-SCHOOLCODE_CLI_INSTALL="${SCHOOLCODE_CLI_INSTALL:-false}" ./scripts/install_SchoolCode.sh
+SCHOOLCODE_CLI_INSTALL="${SCHOOLCODE_CLI_INSTALL:-false}" ./scripts/install.sh
 
 # Step 2: Activate Guest setup
 echo ""

@@ -4,7 +4,7 @@
 # SchoolCode Installation Script v3.0
 # Enhanced with comprehensive error handling, logging, and modularity
 #
-# Usage: ./install_schoolcode_v3.sh [OPTIONS]
+# Usage: ./install.sh [OPTIONS]
 # Options:
 #   -h, --help      Show help message
 #   -v, --verbose   Enable verbose output
@@ -553,10 +553,22 @@ check_homebrew() {
         local brew_health=$(brew doctor 2>&1 || true)
         complete_progress
         
+        # Check for critical issues that require repair
+        local needs_repair=false
         if echo "$brew_health" | grep -q "Your system is ready to brew"; then
             log SUCCESS "Homebrew is healthy"
+        elif echo "$brew_health" | grep -q "Error\|Broken\|Permission denied\|No such file"; then
+            log WARN "Homebrew has critical issues, attempting repair..."
+            needs_repair=true
         else
-            log WARN "Homebrew has some issues, attempting repair..."
+            log INFO "Homebrew has minor warnings but should be functional"
+            # Only show warnings in verbose mode
+            if [[ "$VERBOSE" == "true" ]]; then
+                log DEBUG "Brew doctor output: $brew_health"
+            fi
+        fi
+        
+        if [[ "$needs_repair" == "true" ]]; then
             repair_homebrew
         fi
     fi
@@ -716,13 +728,13 @@ setup_schoolcode_tools() {
     fi
     
     # Copy update and uninstall scripts
-    if [[ -f "$SCRIPT_DIR/schoolcode_update.sh" ]]; then
-        cp "$SCRIPT_DIR/schoolcode_update.sh" "$INSTALL_PREFIX/scripts/" 2>/dev/null || true
-        chmod +x "$INSTALL_PREFIX/scripts/schoolcode_update.sh" 2>/dev/null || true
+    if [[ -f "$SCRIPT_DIR/update.sh" ]]; then
+        cp "$SCRIPT_DIR/update.sh" "$INSTALL_PREFIX/scripts/" 2>/dev/null || true
+        chmod +x "$INSTALL_PREFIX/scripts/update.sh" 2>/dev/null || true
     fi
-    if [[ -f "$SCRIPT_DIR/uninstall_schoolcode.sh" ]]; then
-        cp "$SCRIPT_DIR/uninstall_schoolcode.sh" "$INSTALL_PREFIX/scripts/" 2>/dev/null || true
-        chmod +x "$INSTALL_PREFIX/scripts/uninstall_schoolcode.sh" 2>/dev/null || true
+    if [[ -f "$SCRIPT_DIR/uninstall.sh" ]]; then
+        cp "$SCRIPT_DIR/uninstall.sh" "$INSTALL_PREFIX/scripts/" 2>/dev/null || true
+        chmod +x "$INSTALL_PREFIX/scripts/uninstall.sh" 2>/dev/null || true
     fi
     
     # Copy version file
@@ -779,10 +791,12 @@ create_tool_symlinks() {
                 fi
                 ;;
             python)
+                # For 'python' command, prefer the unversioned python if it exists,
+                # otherwise fall back to python3 (which is the modern standard)
                 if [[ -n "$official_python" ]] && [[ -f "$official_python" ]]; then
                     tool_path="$official_python"
                 elif [[ -n "$official_python3" ]] && [[ -f "$official_python3" ]]; then
-                    # Fallback to python3 if python doesn't exist
+                    # Use python3 as python (modern Python 3 is the standard)
                     tool_path="$official_python3"
                 else
                     tool_path=$(which python 2>/dev/null || which python3 2>/dev/null || true)
@@ -811,7 +825,7 @@ create_tool_symlinks() {
         esac
         
         if [[ -n "$tool_path" ]]; then
-            # Create actual symlink
+            # Create actual symlink (always points to the real executable)
             ln -sf "$tool_path" "$INSTALL_PREFIX/actual/bin/$tool" 2>/dev/null || true
             
             # Create wrapper or direct symlink
@@ -1249,7 +1263,7 @@ main() {
     echo "Next steps:"
     echo "  1. Restart your terminal or run: source ~/.zshrc"
     echo "  2. Verify installation: $INSTALL_PREFIX/bin/python3 --version"
-    echo "  3. Check system status: sudo $SCRIPT_DIR/SchoolCode-cli.sh status"
+    echo "  3. Check system status: sudo $SCRIPT_DIR/schoolcode-cli.sh status"
     echo ""
     echo "Log file: $LOG_FILE"
     

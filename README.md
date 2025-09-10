@@ -38,7 +38,7 @@ git clone https://github.com/luka-loehr/SchoolCode.git
 cd SchoolCode
 
 # Install SchoolCode and its tools (requires sudo)
-sudo ./scripts/SchoolCode-cli.sh install
+sudo ./scripts/schoolcode-cli.sh install
 ```
 
 ## Usage
@@ -47,19 +47,19 @@ SchoolCode is managed via its command-line interface:
 
 ```bash
 # Check system health and status
-sudo ./scripts/SchoolCode-cli.sh status
+sudo ./scripts/schoolcode-cli.sh status
 
 # Update SchoolCode and all managed dependencies
-sudo ./scripts/SchoolCode-cli.sh update
+sudo ./scripts/schoolcode-cli.sh update
 
 # Remove SchoolCode from the system
-sudo ./scripts/SchoolCode-cli.sh uninstall
+sudo ./scripts/schoolcode-cli.sh uninstall
 
 # View error logs
-./scripts/SchoolCode-cli.sh logs error
+./scripts/schoolcode-cli.sh logs error
 
 # Get help and see all commands
-./scripts/SchoolCode-cli.sh --help
+./scripts/schoolcode-cli.sh --help
 ```
 
 ## Security

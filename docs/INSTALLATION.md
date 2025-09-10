@@ -42,7 +42,7 @@ The SchoolCode Installation Script v3.0 is a completely rewritten, production-re
 
 ### Basic Installation
 ```bash
-sudo ./install_schoolcode_v3.sh
+sudo ./scripts/install.sh
 ```
 
 ### Advanced Options
@@ -50,31 +50,31 @@ sudo ./install_schoolcode_v3.sh
 #### Dry Run (Test Mode)
 See what would be installed without making changes:
 ```bash
-sudo ./install_schoolcode_v3.sh --dry-run --verbose
+sudo ./scripts/install.sh --dry-run --verbose
 ```
 
 #### Custom Installation Directory
 Install to a different location:
 ```bash
-sudo ./install_schoolcode_v3.sh --prefix /usr/local/schoolcode
+sudo ./scripts/install.sh --prefix /usr/local/schoolcode
 ```
 
 #### Automated Installation
 Skip all prompts (useful for CI/CD):
 ```bash
-sudo ./install_schoolcode_v3.sh --force --quiet
+sudo ./scripts/install.sh --force --quiet
 ```
 
 #### Custom Log Location
 Specify where to save the installation log:
 ```bash
-sudo ./install_schoolcode_v3.sh --log /path/to/custom.log
+sudo ./scripts/install.sh --log /path/to/custom.log
 ```
 
 #### No Backup Mode
 Skip backup creation (faster but less safe):
 ```bash
-sudo ./install_schoolcode_v3.sh --no-backup
+sudo ./scripts/install.sh --no-backup
 ```
 
 ## Command Line Options
@@ -201,13 +201,13 @@ xcode-select --install
 #### "Permission denied"
 **Solution**: Ensure you're running with sudo:
 ```bash
-sudo ./install_schoolcode_v3.sh
+sudo ./scripts/install.sh
 ```
 
 ### Debug Mode
 For maximum diagnostic information:
 ```bash
-sudo ./install_schoolcode_v3.sh --verbose --dry-run
+sudo ./scripts/install.sh --verbose --dry-run
 ```
 
 ## Uninstallation
@@ -235,13 +235,13 @@ sudo rm -f /usr/local/bin/guest_setup_auto.sh
 ### Testing
 ```bash
 # Syntax check
-bash -n install_schoolcode_v3.sh
+bash -n scripts/install.sh
 
 # Dry run test
-sudo ./install_schoolcode_v3.sh --dry-run --verbose
+sudo ./scripts/install.sh --dry-run --verbose
 
 # Full test with custom prefix
-sudo ./install_schoolcode_v3.sh --prefix /tmp/test_schoolcode --verbose
+sudo ./scripts/install.sh --prefix /tmp/test_schoolcode --verbose
 ```
 
 ### Contributing

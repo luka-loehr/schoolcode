@@ -778,6 +778,18 @@ create_tool_symlinks() {
     
     local tools=("brew" "python" "python3" "pip" "pip3" "git")
     
+    # Robust detection for brew and git even when not in PATH under sudo
+    local detected_brew=""
+    local detected_git=""
+    for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        if [[ -x "$candidate" ]]; then detected_brew="$candidate"; break; fi
+    done
+    if [[ -z "$detected_brew" ]]; then detected_brew="$(command -v brew 2>/dev/null || true)"; fi
+    for candidate in /opt/homebrew/bin/git /usr/local/bin/git; do
+        if [[ -x "$candidate" ]]; then detected_git="$candidate"; break; fi
+    done
+    if [[ -z "$detected_git" ]]; then detected_git="$(command -v git 2>/dev/null || true)"; fi
+    
     for tool in "${tools[@]}"; do
         local tool_path=""
         
@@ -819,8 +831,14 @@ create_tool_symlinks() {
                     tool_path=$(which pip 2>/dev/null || which pip3 2>/dev/null || true)
                 fi
                 ;;
+            brew)
+                tool_path="$detected_brew"
+                ;;
+            git)
+                tool_path="$detected_git"
+                ;;
             *)
-                tool_path=$(which "$tool" 2>/dev/null || true)
+                tool_path=$(command -v "$tool" 2>/dev/null || true)
                 ;;
         esac
         

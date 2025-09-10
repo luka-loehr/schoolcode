@@ -993,6 +993,22 @@ exec "\$ACTUAL_PIP" "\$@"
 EOF
         chmod 755 "$INSTALL_PREFIX/wrappers/$pip_cmd"
     done
+
+    # Create a sudo wrapper in our bin to block sudo for Guest users
+    cat > "$INSTALL_PREFIX/bin/sudo" << 'EOF'
+#!/bin/bash
+# sudo wrapper: block sudo for Guest users
+
+if [[ "$USER" == "Guest" ]]; then
+  echo "❌ Error: sudo is not permitted for Guest users." >&2
+  echo "   This environment is temporary and isolated; administrator actions are disabled." >&2
+  exit 1
+fi
+
+# Non-Guest users fall through to real sudo
+exec /usr/bin/sudo "$@"
+EOF
+    chmod 755 "$INSTALL_PREFIX/bin/sudo"
     
     log DEBUG "Security wrappers created"
 }

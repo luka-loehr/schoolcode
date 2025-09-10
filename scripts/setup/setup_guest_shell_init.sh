@@ -26,11 +26,18 @@ chmod 755 /usr/local/bin/guest_login_setup
 
 # Install the LaunchAgent
 echo "🤖 Installing LaunchAgent..."
-cp launchagents/com.schoolcode.guestsetup.plist /Library/LaunchAgents/
-chmod 644 /Library/LaunchAgents/com.schoolcode.guestsetup.plist
+# Use the repository's LaunchAgent file and install with the expected lowercase name
+SRC_PLIST="SchoolCode_launchagents/com.SchoolCode.guestsetup.plist"
+DST_PLIST="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
+if [ ! -f "$SRC_PLIST" ]; then
+    echo "❌ LaunchAgent source not found: $SRC_PLIST"
+    exit 1
+fi
+cp "$SRC_PLIST" "$DST_PLIST"
+chmod 644 "$DST_PLIST"
 
 # Load the LaunchAgent
-launchctl load /Library/LaunchAgents/com.schoolcode.guestsetup.plist 2>/dev/null || true
+launchctl load "$DST_PLIST" 2>/dev/null || true
 
 # Note: The old com.schoolcode.guestterminal.plist is no longer needed
 # Terminal is now opened by the guest_login_setup script

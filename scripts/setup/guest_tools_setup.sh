@@ -4,7 +4,7 @@
 # SchoolCode Guest Tools Manager
 # This script manages the development tools for the Guest account
 
-ADMIN_TOOLS_DIR="/opt/admin-tools"
+ADMIN_TOOLS_DIR="/opt/schoolcode"
 GUEST_TOOLS_DIR="/Users/Guest/tools"
 LAUNCHAGENT_PLIST="/Library/LaunchAgents/com.schoolcode.guesttools.plist"
 TERMINAL_PLIST="/Library/LaunchAgents/com.schoolcode.guestterminal.plist"
@@ -330,26 +330,8 @@ INSTALLEOF
             exit 1
         fi
         
-        # Create Guest tools directory
-        echo "📁 Creating Guest tools directory..."
-        mkdir -p "$GUEST_TOOLS_DIR/bin"
-        
-        # Copy tools to Guest directory
-        echo "📋 Copying tools to Guest directory..."
-        cp -R "$ADMIN_TOOLS_DIR/bin/"* "$GUEST_TOOLS_DIR/bin/" 2>/dev/null || true
-        
-        # Update shell profile
-        echo "🔧 Updating shell profile..."
-        PROFILE="$HOME/.zprofile"
-        
-        # Add to PATH if not already there
-        if ! grep -q "$GUEST_TOOLS_DIR/bin" "$PROFILE" 2>/dev/null; then            echo "" >> "$PROFILE"            echo "# SchoolCode Guest Tools" >> "$PROFILE"            echo "export PATH=\"$GUEST_TOOLS_DIR/bin:\$PATH\"" >> "$PROFILE"        fi
-        
-        echo ""
-        echo -e "${GREEN}✅ Guest tools setup complete!${NC}"
-        echo ""
-        echo "Tools available at: $GUEST_TOOLS_DIR/bin/"
-        echo "Restart Terminal or run: source ~/.zprofile"
+        echo "🔧 PATH is managed by guest_login_setup and guest_setup_auto."
+        echo -e "${GREEN}✅ No copy needed; tools are in $ADMIN_TOOLS_DIR/bin${NC}"
         ;;
         
     cleanup)

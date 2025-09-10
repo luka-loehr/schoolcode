@@ -45,7 +45,16 @@ rm -f /usr/local/bin/guest_tools_setup.sh
 rm -f /usr/local/bin/simple_guest_setup.sh
 rm -f /usr/local/bin/open_guest_terminal
 
-# Remove admin tools
+# Remove any additional SchoolCode LaunchAgents/Daemons
+for plist in /Library/LaunchAgents/com.schoolcode.*.plist /Library/LaunchDaemons/com.schoolcode.*.plist; do
+    [ -f "$plist" ] && launchctl unload "$plist" 2>/dev/null || true
+    [ -f "$plist" ] && rm -f "$plist"
+done
+
+# Remove SchoolCode installation directory (wrappers, symlinks, configs)
+rm -rf /opt/schoolcode
+
+# Remove legacy admin tools directory if present
 rm -rf /opt/admin-tools
 
 # Clean up logs

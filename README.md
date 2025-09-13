@@ -42,8 +42,11 @@ SchoolCode provides a safe, experimental development environment for students on
 git clone https://github.com/luka-loehr/SchoolCode.git
 cd SchoolCode
 
-# Choose your installation method
-sudo ./setup.sh
+# Automatic installation (recommended)
+sudo ./schoolcode.sh
+
+# Or interactive mode for more control
+sudo ./schoolcode.sh --interactive
 ```
 
 ### Installation Modes
@@ -53,9 +56,9 @@ Installs everything automatically with minimal prompts:
 
 ```bash
 # Automatic installation
-sudo ./setup.sh --auto
+sudo ./schoolcode.sh
 
-# Or via CLI
+# Or via CLI (legacy)
 sudo ./scripts/schoolcode-cli.sh install-auto
 
 # Skip system repair
@@ -70,9 +73,9 @@ Allows you to choose which components to install:
 
 ```bash
 # Interactive installation
-sudo ./setup.sh --interactive
+sudo ./schoolcode.sh --interactive
 
-# Or via CLI
+# Or via CLI (legacy)
 sudo ./scripts/schoolcode-cli.sh install-interactive
 ```
 
@@ -85,52 +88,40 @@ sudo ./scripts/schoolcode-cli.sh install-interactive
 
 ## Usage
 
-SchoolCode is managed via its command-line interface:
+SchoolCode is managed via its central hub interface:
 
-### Installation Commands
+### 🎛️ SchoolCode Hub (Recommended)
 ```bash
-# Interactive installation (choose components)
-sudo ./scripts/schoolcode-cli.sh install-interactive
-
 # Automatic installation (everything at once)
+sudo ./schoolcode.sh
+
+# Interactive mode (choose components)
+sudo ./schoolcode.sh --interactive
+
+# Check system status
+sudo ./schoolcode.sh --status
+
+# Show help
+./schoolcode.sh --help
+```
+
+### 🔧 Advanced CLI Commands (Legacy)
+```bash
+# Installation commands
+sudo ./scripts/schoolcode-cli.sh install-interactive
 sudo ./scripts/schoolcode-cli.sh install-auto
 
-# Install with options
-sudo ./scripts/schoolcode-cli.sh install-auto --no-repair
-sudo ./scripts/schoolcode-cli.sh install-auto --force
-```
-
-### System Management
-```bash
-# Check system health and status
+# System management
 sudo ./scripts/schoolcode-cli.sh status
-
-# Check system compatibility
 sudo ./scripts/schoolcode-cli.sh compatibility
-
-# Repair system prerequisites
 sudo ./scripts/schoolcode-cli.sh repair
-
-# Update SchoolCode and all managed dependencies
 sudo ./scripts/schoolcode-cli.sh update
-
-# Remove SchoolCode from the system
 sudo ./scripts/schoolcode-cli.sh uninstall
-```
 
-### Logging & Debugging
-```bash
-# View all logs
+# Logging
 sudo ./scripts/schoolcode-cli.sh logs
-
-# View error logs only
 sudo ./scripts/schoolcode-cli.sh logs error
-
-# View guest setup logs
 sudo ./scripts/schoolcode-cli.sh logs guest
-
-# Get help and see all commands
-./scripts/schoolcode-cli.sh --help
 ```
 
 ### Guest Account Management

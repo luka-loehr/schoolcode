@@ -664,42 +664,55 @@ cmd_permissions() {
 cmd_update() {
     require_root
     
-    print_info "Updating SchoolCode and all dependencies..."
+    print_info "Checking for SchoolCode updates..."
     
     if [[ "$DRY_RUN" == "true" ]]; then
         print_info "Would update SchoolCode, Python, Git, Homebrew, and pip"
         return
     fi
     
-    # Update SchoolCode first
-    print_info "Pulling latest SchoolCode from GitHub..."
-    
     # Change to repo directory
     cd "$(dirname "$SCRIPT_DIR")"
     
-    # Stash any local changes
-    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-        git stash push -m "SchoolCode update stash $(date +%Y%m%d_%H%M%S)" >/dev/null 2>&1
+    # Check if we have changes to pull
+    git fetch --all --tags >/dev/null 2>&1
+    
+    # Check if there are updates available
+    local current_commit=$(git rev-parse HEAD)
+    local remote_commit=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master 2>/dev/null)
+    
+    if [[ "$current_commit" == "$remote_commit" ]]; then
+        print_success "SchoolCode is already up to date"
+    else
+        print_info "Updating SchoolCode from GitHub..."
+        
+        # Stash any local changes
+        if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+            git stash push -m "SchoolCode update stash $(date +%Y%m%d_%H%M%S)" >/dev/null 2>&1
+        fi
+        
+        # Pull latest changes
+        git pull origin main >/dev/null 2>&1 || git pull origin master >/dev/null 2>&1
+        
+        # Make scripts executable
+        find "$SCRIPT_DIR" -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null
+        
+        print_success "SchoolCode updated successfully"
     fi
     
-    # Pull latest changes
-    git fetch --all --tags >/dev/null 2>&1
-    git pull origin main >/dev/null 2>&1 || git pull origin master >/dev/null 2>&1
+    # Update dependencies (suppress verbose output)
+    print_info "Updating dependencies..."
+    bash "$SCRIPT_DIR/utils/update_dependencies.sh" >/dev/null 2>&1 || {
+        print_warning "Some dependency updates may have failed - check logs for details"
+    }
     
-    # Make scripts executable
-    find "$SCRIPT_DIR" -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null
-    
-    print_success "SchoolCode code updated"
-    
-    # Update all dependencies
-    print_info "Updating Python, Git, Homebrew, and pip..."
-    bash "$SCRIPT_DIR/utils/update_dependencies.sh"
-    
-    # Run installation to apply updates
+    # Apply updates silently
     print_info "Applying updates..."
-    bash "$SCRIPT_DIR/install.sh"
+    bash "$SCRIPT_DIR/install.sh" >/dev/null 2>&1 || {
+        print_warning "Some updates may not have been applied - check logs for details"
+    }
     
-    print_success "Update completed successfully!"
+    print_success "Update process completed"
 }
 
 

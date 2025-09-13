@@ -13,7 +13,7 @@ CONFIG_FILE="$CONFIG_DIR/schoolcode.conf"
 USER_CONFIG_FILE="$HOME/.schoolcode.conf"
 
 # Default configuration values (bash 3.2 compatible)
-DEFAULT_ADMIN_TOOLS_DIR="/opt/schoolcode"
+DEFAULT_SCHOOLCODE_TOOLS_DIR="/opt/schoolcode"
 DEFAULT_GUEST_TOOLS_DIR="/Users/Guest/tools"
 DEFAULT_SCRIPTS_DIR="/usr/local/bin"
 DEFAULT_LAUNCHAGENT_DIR="/Library/LaunchAgents"
@@ -90,7 +90,7 @@ create_default_config() {
 # Lines starting with # are comments
 
 # Paths Configuration
-ADMIN_TOOLS_DIR=/opt/schoolcode
+SCHOOLCODE_TOOLS_DIR=/opt/schoolcode
 GUEST_TOOLS_DIR=/Users/Guest/tools
 SCRIPTS_DIR=/usr/local/bin
 LAUNCHAGENT_DIR=/Library/LaunchAgents
@@ -139,7 +139,7 @@ load_config() {
     
     # Start with default values
     cat > "$CONFIG_CACHE_FILE" << EOF
-ADMIN_TOOLS_DIR=$DEFAULT_ADMIN_TOOLS_DIR
+SCHOOLCODE_TOOLS_DIR=$DEFAULT_SCHOOLCODE_TOOLS_DIR
 GUEST_TOOLS_DIR=$DEFAULT_GUEST_TOOLS_DIR
 SCRIPTS_DIR=$DEFAULT_SCRIPTS_DIR
 LAUNCHAGENT_DIR=$DEFAULT_LAUNCHAGENT_DIR
@@ -228,7 +228,7 @@ get_config() {
     else
         # Fallback to default values
         case "$key" in
-            "ADMIN_TOOLS_DIR") echo "$DEFAULT_ADMIN_TOOLS_DIR" ;;
+            "SCHOOLCODE_TOOLS_DIR") echo "$DEFAULT_SCHOOLCODE_TOOLS_DIR" ;;
             "GUEST_TOOLS_DIR") echo "$DEFAULT_GUEST_TOOLS_DIR" ;;
             "SCRIPTS_DIR") echo "$DEFAULT_SCRIPTS_DIR" ;;
             "TOOLS_LIST") echo "$DEFAULT_TOOLS_LIST" ;;
@@ -311,11 +311,11 @@ validate_config() {
     local errors=0
     
     # Check required paths exist or can be created
-    local admin_tools_dir=$(get_config "ADMIN_TOOLS_DIR")
-    if [[ ! -d "$admin_tools_dir" && $EUID -eq 0 ]]; then
-        mkdir -p "$admin_tools_dir" 2>/dev/null || {
+    local schoolcode_tools_dir=$(get_config "SCHOOLCODE_TOOLS_DIR")
+    if [[ ! -d "$schoolcode_tools_dir" && $EUID -eq 0 ]]; then
+        mkdir -p "$schoolcode_tools_dir" 2>/dev/null || {
             if declare -f log_error >/dev/null 2>&1; then
-                log_error "Cannot create admin tools directory: $admin_tools_dir"
+                log_error "Cannot create SchoolCode tools directory: $schoolcode_tools_dir"
             fi
             ((errors++))
         }
@@ -363,7 +363,7 @@ show_config() {
     echo ""
     
     echo "📁 Paths:"
-    echo "  Admin Tools: $(get_config 'ADMIN_TOOLS_DIR')"
+    echo "  SchoolCode Tools: $(get_config 'SCHOOLCODE_TOOLS_DIR')"
     echo "  Guest Tools: $(get_config 'GUEST_TOOLS_DIR')"
     echo "  Scripts:     $(get_config 'SCRIPTS_DIR')"
     echo ""

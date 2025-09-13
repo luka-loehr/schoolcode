@@ -42,7 +42,7 @@ set_health_status() {
     
     case "$component" in
         "overall") HEALTH_OVERALL="$status" ;;
-        "admin_tools") HEALTH_ADMIN_TOOLS="$status" ;;
+        "schoolcode_tools") HEALTH_SCHOOLCODE_TOOLS="$status" ;;
         "guest_setup") HEALTH_GUEST_SETUP="$status" ;;
         "launchagent") HEALTH_LAUNCHAGENT="$status" ;;
         "homebrew") HEALTH_HOMEBREW="$status" ;;
@@ -57,7 +57,7 @@ get_health_status() {
     
     case "$component" in
         "overall") echo "$HEALTH_OVERALL" ;;
-        "admin_tools") echo "$HEALTH_ADMIN_TOOLS" ;;
+        "schoolcode_tools") echo "$HEALTH_SCHOOLCODE_TOOLS" ;;
         "guest_setup") echo "$HEALTH_GUEST_SETUP" ;;
         "launchagent") echo "$HEALTH_LAUNCHAGENT" ;;
         "homebrew") echo "$HEALTH_HOMEBREW" ;;
@@ -119,15 +119,15 @@ check_disk_space() {
     fi
 }
 
-# Function to check admin tools
-check_admin_tools() {
-    local admin_tools_dir=$(get_config "ADMIN_TOOLS_DIR")
+# Function to check SchoolCode tools
+check_schoolcode_tools() {
+    local schoolcode_tools_dir=$(get_config "SCHOOLCODE_TOOLS_DIR")
     local tools_working=0
     local tools_total=0
     
-    if [[ ! -d "$admin_tools_dir/bin" ]]; then
-        set_health_status "admin_tools" "unhealthy"
-        log_error "Admin tools directory missing: $admin_tools_dir/bin"
+    if [[ ! -d "$schoolcode_tools_dir/bin" ]]; then
+        set_health_status "schoolcode_tools" "unhealthy"
+        log_error "SchoolCode tools directory missing: $schoolcode_tools_dir/bin"
         return 1
     fi
     
@@ -136,7 +136,7 @@ check_admin_tools() {
     for tool in "${tools_array[@]}"; do
         ((tools_total++))
         
-        local tool_path="$admin_tools_dir/bin/$tool"
+        local tool_path="$schoolcode_tools_dir/bin/$tool"
         if [[ -x "$tool_path" ]]; then
             # Test if tool actually works
             local test_cmd=$(get_tool_info "$tool" "test_cmd")
@@ -159,13 +159,13 @@ check_admin_tools() {
     METRICS_TOOL_COUNT="$tools_working/$tools_total"
     
     if [[ $tools_working -eq $tools_total ]]; then
-        set_health_status "admin_tools" "healthy"
+        set_health_status "schoolcode_tools" "healthy"
         return 0
     elif [[ $tools_working -gt 0 ]]; then
-        set_health_status "admin_tools" "degraded"
+        set_health_status "schoolcode_tools" "degraded"
         return 2
     else
-        set_health_status "admin_tools" "unhealthy"
+        set_health_status "schoolcode_tools" "unhealthy"
         return 1
     fi
 }
@@ -283,26 +283,26 @@ check_homebrew() {
 
 # Function to check permissions
 check_permissions() {
-    local admin_tools_dir=$(get_config "ADMIN_TOOLS_DIR")
+    local schoolcode_tools_dir=$(get_config "SCHOOLCODE_TOOLS_DIR")
     local permission_issues=0
     
-    # Check admin tools directory permissions
-    if [[ -d "$admin_tools_dir" ]]; then
-        local perms=$(stat -f "%p" "$admin_tools_dir" 2>/dev/null | tail -c 4)
+    # Check SchoolCode tools directory permissions
+    if [[ -d "$schoolcode_tools_dir" ]]; then
+        local perms=$(stat -f "%p" "$schoolcode_tools_dir" 2>/dev/null | tail -c 4)
         if [[ "$perms" != "755" ]]; then
-            log_warn "Incorrect permissions on admin tools directory: $perms"
+            log_warn "Incorrect permissions on SchoolCode tools directory: $perms"
             ((permission_issues++))
         fi
         
         # Check individual tool permissions
-        if [[ -d "$admin_tools_dir/bin" ]]; then
+        if [[ -d "$schoolcode_tools_dir/bin" ]]; then
             while IFS= read -r -d '' tool_file; do
                 local tool_perms=$(stat -f "%p" "$tool_file" 2>/dev/null | tail -c 4)
                 if [[ "$tool_perms" != "755" ]]; then
                     log_warn "Incorrect permissions on tool: $(basename "$tool_file") ($tool_perms)"
                     ((permission_issues++))
                 fi
-            done < <(find "$admin_tools_dir/bin" -type f -print0 2>/dev/null)
+            done < <(find "$schoolcode_tools_dir/bin" -type f -print0 2>/dev/null)
         fi
     fi
     
@@ -425,7 +425,7 @@ run_health_checks() {
     
     # Run individual checks
     check_disk_space; local disk_result=$?
-    check_admin_tools; local tools_result=$?
+    check_schoolcode_tools; local tools_result=$?
     check_launchagent; local agent_result=$?
     check_homebrew; local brew_result=$?
     check_permissions; local perms_result=$?
@@ -474,7 +474,7 @@ save_health_status() {
   "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
   "overall_status": "$(get_health_status overall)",
   "components": {
-    "admin_tools": "$(get_health_status admin_tools)",
+    "schoolcode_tools": "$(get_health_status schoolcode_tools)",
     "guest_setup": "$(get_health_status guest_setup)",
     "launchagent": "$(get_health_status launchagent)",
     "homebrew": "$(get_health_status homebrew)",
@@ -518,7 +518,7 @@ show_health_status() {
     
     # Component status
     echo "📊 Component Status:"
-    local components="admin_tools guest_setup launchagent homebrew permissions disk_space"
+    local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
     for component in $components; do
         local status=$(get_health_status "$component")
         local icon="❓"
@@ -542,7 +542,7 @@ show_health_status() {
     if [[ "$show_details" == "true" ]]; then
         echo ""
         echo "🔍 Detailed Information:"
-        echo "  Admin Tools Dir: $(get_config 'ADMIN_TOOLS_DIR')"
+        echo "  SchoolCode Tools Dir: $(get_config 'SCHOOLCODE_TOOLS_DIR')"
         echo "  Guest Tools Dir: $(get_config 'GUEST_TOOLS_DIR')"
         echo "  Hostname:        $(hostname)"
         echo "  macOS Version:   $(sw_vers -productVersion 2>/dev/null || echo "unknown")"
@@ -615,7 +615,7 @@ check_and_alert() {
     esac
     
     # Specific component alerts
-    local components="admin_tools guest_setup launchagent homebrew permissions disk_space"
+    local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
     for component in $components; do
         local status=$(get_health_status "$component")
         case "$status" in

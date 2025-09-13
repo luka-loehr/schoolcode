@@ -11,23 +11,12 @@ SCRIPT_VERSION="3.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source utility libraries
-if [ -f "$SCRIPT_DIR/scripts/utils/logging.sh" ]; then
-    source "$SCRIPT_DIR/scripts/utils/logging.sh"
-else
-    echo "Warning: Could not find logging utilities, using basic logging"
-    # Basic logging functions if logging.sh is not found
-    log_info() { echo "[INFO] $*"; }
-    log_error() { echo "[ERROR] $*" >&2; }
-    log_warning() { echo "[WARNING] $*"; }
-    log_success() { echo "[SUCCESS] $*"; }
-fi
+source "$SCRIPT_DIR/scripts/utils/logging.sh"
 
-# Skip config.sh for now as it requires special permissions
-# if [ -f "$SCRIPT_DIR/scripts/utils/config.sh" ]; then
-#     source "$SCRIPT_DIR/scripts/utils/config.sh"
-# else
-#     echo "Warning: Could not find configuration utilities"
-# fi
+# Only source config.sh if not showing help (to avoid permission issues)
+if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+    source "$SCRIPT_DIR/scripts/utils/config.sh"
+fi
 
 # Color codes for output
 HEADER='\033[1;34m'

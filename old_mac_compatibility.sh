@@ -8,7 +8,18 @@ set -euo pipefail
 
 # Source logging utility
 SCRIPT_DIR="$(dirname "$0")"
-source "${SCRIPT_DIR}/logging.sh"
+if [ -f "${SCRIPT_DIR}/scripts/utils/logging.sh" ]; then
+    source "${SCRIPT_DIR}/scripts/utils/logging.sh"
+elif [ -f "${SCRIPT_DIR}/logging.sh" ]; then
+    source "${SCRIPT_DIR}/logging.sh"
+else
+    echo "Warning: Could not find logging utility, using basic logging"
+    # Basic logging functions if logging.sh is not found
+    log_info() { echo "[INFO] $*"; }
+    log_error() { echo "[ERROR] $*" >&2; }
+    log_warning() { echo "[WARNING] $*"; }
+    log_success() { echo "[SUCCESS] $*"; }
+fi
 
 # Compatibility thresholds
 MIN_MACOS_MAJOR=10

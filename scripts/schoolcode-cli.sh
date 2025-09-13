@@ -27,6 +27,7 @@ OPTIONS=()
 VERBOSE=false
 DRY_RUN=false
 FORCE=false
+NO_REPAIR=false
 
 # Color codes for CLI output (bash 3.2 compatible)
 CLI_HEADER='\033[1;34m'
@@ -73,12 +74,16 @@ show_help() {
     echo ""
     echo -e "${CLI_INFO}Installation & Setup:${CLI_NC}"
     echo "  install         Install SchoolCode system"
+    echo "  install-auto    Automatic installation (everything at once)"
+    echo "  install-interactive  Interactive installation (choose components)"
     echo "  uninstall       Remove SchoolCode system"
     echo "  update          Update SchoolCode and all dependencies"
     echo ""
     echo -e "${CLI_INFO}System Management:${CLI_NC}"
     echo "  status          Show system status"
     echo "  health          Run health checks"
+    echo "  repair          Repair system prerequisites"
+    echo "  compatibility   Check system compatibility"
     echo "  logs            View system logs"
     echo ""
     echo -e "${CLI_INFO}Configuration:${CLI_NC}"
@@ -95,14 +100,19 @@ show_help() {
     echo "  -q, --quiet     Suppress non-error output"
     echo "  --dry-run       Show what would be done without executing"
     echo "  --force         Force operations without confirmation"
+    echo "  --no-repair     Skip system repair during installation"
     echo "  -h, --help      Show this help message"
     echo "  --version       Show version information"
     echo ""
     echo -e "${CLI_BOLD}EXAMPLES:${CLI_NC}"
-    echo "  $0 install              # Install SchoolCode"
+    echo "  $0 install-interactive  # Choose what to install"
+    echo "  $0 install-auto         # Install everything automatically"
+    echo "  $0 install-auto --no-repair  # Auto install without repair"
     echo "  $0 status --verbose     # Show detailed status"
     echo "  $0 update               # Update to latest version from GitHub"
     echo "  $0 health detailed      # Run detailed health check"
+    echo "  $0 repair               # Repair system prerequisites"
+    echo "  $0 compatibility        # Check system compatibility"
     echo "  $0 config show          # Show current configuration"
     echo "  $0 tools list           # List available tools"
     echo "  $0 guest setup          # Setup guest environment"
@@ -144,6 +154,10 @@ parse_args() {
                 ;;
             --force)
                 FORCE=true
+                shift
+                ;;
+            --no-repair)
+                NO_REPAIR=true
                 shift
                 ;;
             -h|--help)
@@ -214,7 +228,15 @@ cmd_install() {
                 return
             fi
             
-            if SCHOOLCODE_CLI_INSTALL=true bash "$SCRIPT_DIR/setup.sh"; then
+            # Pass through CLI options to setup.sh
+            local setup_options=""
+            if [[ "$FORCE" == "true" ]]; then
+                setup_options="--force-repair"
+            elif [[ "$NO_REPAIR" == "true" ]]; then
+                setup_options="--skip-repair"
+            fi
+            
+            if SCHOOLCODE_CLI_INSTALL=true bash "$SCRIPT_DIR/setup.sh" $setup_options; then
                 print_success "SchoolCode installation completed successfully"
                 echo ""
                 # Show health status (no clear to preserve installation logs)
@@ -246,6 +268,54 @@ cmd_install() {
             exit 1
             ;;
     esac
+}
+
+# Automatic installation command
+cmd_install_auto() {
+    require_root
+    
+    print_header
+    log_info "Starting automatic SchoolCode installation..."
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_info "Would run: install_auto.sh"
+        return
+    fi
+    
+    # Pass through CLI options to auto installer
+    local auto_options=""
+    if [[ "$FORCE" == "true" ]]; then
+        auto_options="--force-repair"
+    elif [[ "$NO_REPAIR" == "true" ]]; then
+        auto_options="--skip-repair"
+    fi
+    
+    if bash "$SCRIPT_DIR/install_auto.sh" $auto_options; then
+        print_success "Automatic installation completed successfully"
+    else
+        print_error "Automatic installation failed"
+        exit 1
+    fi
+}
+
+# Interactive installation command
+cmd_install_interactive() {
+    require_root
+    
+    print_header
+    log_info "Starting interactive SchoolCode installation..."
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_info "Would run: install_interactive.sh"
+        return
+    fi
+    
+    if bash "$SCRIPT_DIR/install_interactive.sh"; then
+        print_success "Interactive installation completed successfully"
+    else
+        print_error "Interactive installation failed"
+        exit 1
+    fi
 }
 
 # Uninstall commands
@@ -300,6 +370,86 @@ cmd_health() {
         *)
             print_error "Unknown health subcommand: $SUBCOMMAND"
             echo "Available: basic, detailed, continuous [interval]"
+            exit 1
+            ;;
+    esac
+}
+
+# System repair commands
+cmd_repair() {
+    require_root
+    
+    case "$SUBCOMMAND" in
+        ""|"system")
+            print_info "Running system repair..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                local project_root="$(dirname "$SCRIPT_DIR")"
+                if [[ -f "$project_root/system_repair.sh" ]]; then
+                    bash "$project_root/system_repair.sh"
+                else
+                    print_error "System repair script not found"
+                    exit 1
+                fi
+            else
+                print_info "Would run system repair script"
+            fi
+            print_success "System repair completed"
+            ;;
+        "xcode")
+            print_info "Repairing Xcode Command Line Tools..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                local project_root="$(dirname "$SCRIPT_DIR")"
+                if [[ -f "$project_root/system_repair.sh" ]]; then
+                    # Run only the Xcode CLT repair function
+                    bash -c "source $project_root/system_repair.sh; check_and_repair_xcode_clt"
+                else
+                    print_error "System repair script not found"
+                    exit 1
+                fi
+            fi
+            print_success "Xcode CLT repair completed"
+            ;;
+        *)
+            print_error "Unknown repair subcommand: $SUBCOMMAND"
+            echo "Available: system, xcode"
+            exit 1
+            ;;
+    esac
+}
+
+# Compatibility check commands
+cmd_compatibility() {
+    case "$SUBCOMMAND" in
+        ""|"check")
+            print_info "Checking system compatibility..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                local project_root="$(dirname "$SCRIPT_DIR")"
+                if [[ -f "$project_root/old_mac_compatibility.sh" ]]; then
+                    bash "$project_root/old_mac_compatibility.sh"
+                else
+                    print_error "Compatibility checker not found"
+                    exit 1
+                fi
+            else
+                print_info "Would run compatibility check"
+            fi
+            ;;
+        "report")
+            print_info "Generating compatibility report..."
+            if [[ "$DRY_RUN" == "false" ]]; then
+                local project_root="$(dirname "$SCRIPT_DIR")"
+                if [[ -f "$project_root/old_mac_compatibility.sh" ]]; then
+                    bash "$project_root/old_mac_compatibility.sh"
+                    print_info "Compatibility report saved to: /tmp/schoolcode_compatibility_report.txt"
+                else
+                    print_error "Compatibility checker not found"
+                    exit 1
+                fi
+            fi
+            ;;
+        *)
+            print_error "Unknown compatibility subcommand: $SUBCOMMAND"
+            echo "Available: check, report"
             exit 1
             ;;
     esac
@@ -567,16 +717,20 @@ main() {
     
     # Dispatch to command function
     case "$COMMAND" in
-        install)     cmd_install ;;
-        uninstall)   cmd_uninstall ;;
-        status)      cmd_status ;;
-        health)      cmd_health ;;
-        config)      cmd_config ;;
-        tools)       cmd_tools ;;
-        guest)       cmd_guest ;;
-        logs)        cmd_logs ;;
-        permissions) cmd_permissions ;;
-        update)      cmd_update ;;
+        install)                cmd_install ;;
+        install-auto)           cmd_install_auto ;;
+        install-interactive)    cmd_install_interactive ;;
+        uninstall)              cmd_uninstall ;;
+        status)                 cmd_status ;;
+        health)                 cmd_health ;;
+        repair)                 cmd_repair ;;
+        compatibility)          cmd_compatibility ;;
+        config)                 cmd_config ;;
+        tools)                  cmd_tools ;;
+        guest)                  cmd_guest ;;
+        logs)                   cmd_logs ;;
+        permissions)            cmd_permissions ;;
+        update)                 cmd_update ;;
         *)
             print_error "Unknown command: $COMMAND"
             echo "Use '$0 --help' for usage information."

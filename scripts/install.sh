@@ -401,25 +401,40 @@ check_root() {
 verify_system_requirements() {
     log INFO "Verifying system requirements..."
     
-    # Check macOS version
-    local macos_version=$(sw_vers -productVersion 2>/dev/null || echo "0.0")
-    local major_version=$(echo "$macos_version" | cut -d. -f1)
-    local minor_version=$(echo "$macos_version" | cut -d. -f2)
-    
-    log DEBUG "Detected macOS version: $macos_version"
-    
-    if [[ $major_version -lt 10 ]] || ([[ $major_version -eq 10 ]] && [[ $minor_version -lt 14 ]]); then
-        log ERROR "macOS $MIN_MACOS_VERSION or later is required (found: $macos_version)"
-        return 1
-    fi
-    
-    # Check available disk space
-    local available_space=$(df /opt 2>/dev/null | awk 'NR==2 {print int($4/1024)}')
-    log DEBUG "Available disk space: ${available_space}MB"
-    
-    if [[ $available_space -lt $MIN_DISK_SPACE_MB ]]; then
-        log ERROR "Insufficient disk space. Need ${MIN_DISK_SPACE_MB}MB, have ${available_space}MB"
-        return 1
+    # First run comprehensive compatibility check
+    local project_root="$(dirname "$(dirname "$SCRIPT_DIR")")"
+    if [[ -f "$project_root/old_mac_compatibility.sh" ]]; then
+        log INFO "Running comprehensive compatibility check..."
+        if ! bash "$project_root/old_mac_compatibility.sh"; then
+            log ERROR "System compatibility check failed"
+            log ERROR "Please check the compatibility report and fix issues before proceeding"
+            return 1
+        fi
+        log SUCCESS "System compatibility verified"
+    else
+        log WARN "Compatibility checker not found, running basic checks..."
+        
+        # Fallback to basic checks if compatibility script not available
+        # Check macOS version
+        local macos_version=$(sw_vers -productVersion 2>/dev/null || echo "0.0")
+        local major_version=$(echo "$macos_version" | cut -d. -f1)
+        local minor_version=$(echo "$macos_version" | cut -d. -f2)
+        
+        log DEBUG "Detected macOS version: $macos_version"
+        
+        if [[ $major_version -lt 10 ]] || ([[ $major_version -eq 10 ]] && [[ $minor_version -lt 14 ]]); then
+            log ERROR "macOS $MIN_MACOS_VERSION or later is required (found: $macos_version)"
+            return 1
+        fi
+        
+        # Check available disk space
+        local available_space=$(df /opt 2>/dev/null | awk 'NR==2 {print int($4/1024)}')
+        log DEBUG "Available disk space: ${available_space}MB"
+        
+        if [[ $available_space -lt $MIN_DISK_SPACE_MB ]]; then
+            log ERROR "Insufficient disk space. Need ${MIN_DISK_SPACE_MB}MB, have ${available_space}MB"
+            return 1
+        fi
     fi
     
     # Check for required commands
@@ -444,17 +459,51 @@ verify_system_requirements() {
 install_missing_dependencies() {
     local deps=("$@")
     
+    # If we're missing critical dependencies, run system repair first
+    local critical_deps=("git" "curl" "make")
+    local missing_critical=()
+    
+    for dep in "${critical_deps[@]}"; do
+        if ! command -v "$dep" &>/dev/null; then
+            missing_critical+=("$dep")
+        fi
+    done
+    
+    if [[ ${#missing_critical[@]} -gt 0 ]]; then
+        log WARN "Missing critical dependencies: ${missing_critical[*]}"
+        log INFO "Running system repair to fix prerequisites..."
+        
+        if [[ "$DRY_RUN" != "true" ]]; then
+            # Run system repair script from project root
+            local project_root="$(dirname "$(dirname "$SCRIPT_DIR")")"
+            if [[ -f "$project_root/system_repair.sh" ]]; then
+                bash "$project_root/system_repair.sh" || {
+                    log ERROR "System repair failed - cannot proceed without prerequisites"
+                    return 1
+                }
+            else
+                log ERROR "System repair script not found - cannot fix prerequisites"
+                return 1
+            fi
+        fi
+    fi
+    
+    # Handle any remaining dependencies
     for dep in "${deps[@]}"; do
         case "$dep" in
             git)
-                log INFO "Installing git via xcode-select..."
-                if [[ "$DRY_RUN" != "true" ]]; then
-                    xcode-select --install 2>/dev/null || true
+                if ! command -v git &>/dev/null; then
+                    log INFO "Installing git via xcode-select..."
+                    if [[ "$DRY_RUN" != "true" ]]; then
+                        xcode-select --install 2>/dev/null || true
+                    fi
                 fi
                 ;;
             curl)
-                log ERROR "curl is required but not installed. Please install Xcode Command Line Tools"
-                return 1
+                if ! command -v curl &>/dev/null; then
+                    log ERROR "curl is required but not installed. Please install Xcode Command Line Tools"
+                    return 1
+                fi
                 ;;
             *)
                 log WARN "Don't know how to install $dep"

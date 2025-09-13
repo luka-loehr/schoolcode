@@ -9,6 +9,8 @@ set -euo pipefail
 # Script metadata
 SCRIPT_VERSION="3.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
+STATUS_FILE="$PROJECT_ROOT/.schoolcode-status"
 
 # Source utility libraries
 source "$SCRIPT_DIR/scripts/utils/logging.sh"
@@ -49,6 +51,96 @@ print_warning() {
 
 print_info() {
     echo -e "${INFO}ℹ️  $1${NC}"
+}
+
+# Status reporting functions
+get_schoolcode_version() {
+    local version="latest"
+    if [[ -f "$PROJECT_ROOT/version.txt" ]]; then
+        local file_version=$(cat "$PROJECT_ROOT/version.txt" 2>/dev/null | head -1 | tr -d '\n\r')
+        if [[ -n "$file_version" ]]; then
+            version="$file_version"
+        fi
+    fi
+    echo "$version"
+}
+
+get_installer_ip() {
+    local ip=""
+    if command -v ifconfig &>/dev/null; then
+        ip=$(ifconfig | grep -E "inet [0-9]" | grep -v "127.0.0.1" | head -1 | awk '{print $2}' 2>/dev/null || echo "")
+    elif command -v ip &>/dev/null; then
+        ip=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' 2>/dev/null || echo "")
+    fi
+    if [[ -z "$ip" ]]; then
+        ip="127.0.0.1"
+    fi
+    echo "$ip"
+}
+
+update_status() {
+    local status="$1"
+    local message="${2:-}"
+    
+    # Check if marker file exists (created by installer)
+    if [[ ! -f "$STATUS_FILE" ]]; then
+        echo "Warning: Marker file not found at $STATUS_FILE (should be created by installer)" >&2
+        return 1
+    fi
+    
+    # Validate status value
+    case "$status" in
+        "ready"|"error")
+            ;;
+        *)
+            echo "Error: Invalid status value: $status" >&2
+            return 1
+            ;;
+    esac
+    
+    # Get current values
+    local schoolcode_version=$(get_schoolcode_version)
+    local install_path="$PROJECT_ROOT"
+    local installer_ip=$(get_installer_ip)
+    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)
+    
+    # Create status data structure
+    local status_data
+    if [[ "$status" == "ready" ]]; then
+        status_data=$(cat << EOF
+{
+  "status": "$status",
+  "cloned": true,
+  "installed": true,
+  "timestamp": "$timestamp",
+  "install_path": "$install_path",
+  "schoolcode_version": "$schoolcode_version",
+  "message": "$message"
+}
+EOF
+)
+    else
+        status_data=$(cat << EOF
+{
+  "status": "$status",
+  "cloned": true,
+  "timestamp": "$timestamp",
+  "install_path": "$install_path",
+  "schoolcode_version": "$schoolcode_version",
+  "message": "$message"
+}
+EOF
+)
+    fi
+    
+    # Write status file with error handling
+    if echo "$status_data" > "$STATUS_FILE" 2>/dev/null; then
+        echo "Status updated: $status"
+        return 0
+    else
+        echo "Error: Failed to update status file: $STATUS_FILE" >&2
+        return 1
+    fi
 }
 
 # Check if running as root (skip for help)
@@ -233,8 +325,10 @@ interactive_mode() {
                 print_info "Starting full installation..."
                 if run_compatibility_check && run_system_repair && install_tools && setup_guest_account; then
                     print_success "Full installation completed successfully!"
+                    update_status "ready" "SchoolCode installation completed successfully"
                 else
                     print_error "Installation failed at some step. Check logs for details."
+                    update_status "error" "SchoolCode installation failed"
                 fi
                 echo ""
                 read -p "Press Enter to continue..."
@@ -285,6 +379,7 @@ automatic_mode() {
     # Run full installation sequence
     if run_compatibility_check && run_system_repair && install_tools && setup_guest_account; then
         print_success "SchoolCode installation completed successfully!"
+        update_status "ready" "SchoolCode installation completed successfully"
         echo ""
         print_info "You can now:"
         echo "  • Switch to Guest account to test the installation"
@@ -292,6 +387,7 @@ automatic_mode() {
         echo "  • Run './schoolcode.sh --status' to check system status"
     else
         print_error "Installation failed at some step. Check logs for details."
+        update_status "error" "SchoolCode installation failed"
         echo ""
         print_info "You can run './schoolcode.sh' for interactive troubleshooting."
         exit 1

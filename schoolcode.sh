@@ -211,7 +211,7 @@ update_schoolcode() {
     "$SCRIPT_DIR/scripts/schoolcode-cli.sh" update
 }
 
-# Uninstall SchoolCode
+# Uninstall SchoolCode (interactive)
 uninstall_schoolcode() {
     print_warning "This will remove SchoolCode and all installed tools from Guest accounts."
     read -p "Are you sure you want to continue? (y/N): " -n 1 -r
@@ -221,6 +221,19 @@ uninstall_schoolcode() {
         "$SCRIPT_DIR/scripts/schoolcode-cli.sh" uninstall
     else
         print_info "Uninstall cancelled."
+    fi
+}
+
+# Uninstall SchoolCode (non-interactive)
+uninstall_schoolcode_noninteractive() {
+    print_warning "Removing SchoolCode and all installed tools from Guest accounts..."
+    print_info "Uninstalling SchoolCode..."
+    if "$SCRIPT_DIR/scripts/schoolcode-cli.sh" uninstall; then
+        print_success "SchoolCode uninstallation completed successfully!"
+        return 0
+    else
+        print_error "SchoolCode uninstallation failed!"
+        return 1
     fi
 }
 
@@ -401,18 +414,25 @@ show_help() {
     echo ""
     echo "Usage:"
     echo "  sudo ./schoolcode.sh                    # Automatic installation (full setup)"
+    echo "  sudo ./schoolcode.sh --install          # Same as above (explicit install)"
+    echo "  sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (non-interactive)"
     echo "  sudo ./schoolcode.sh --interactive      # Interactive mode (menu-driven)"
     echo "  sudo ./schoolcode.sh --status           # Show system status"
     echo "  sudo ./schoolcode.sh --help             # Show this help"
     echo ""
-    echo "Automatic Mode (no flags):"
+    echo "Installation Mode (--install or no flags):"
     echo "  Runs compatibility check, system repair, tool installation, and guest setup"
+    echo ""
+    echo "Uninstall Mode (--uninstall):"
+    echo "  Removes SchoolCode and all installed tools from Guest accounts"
     echo ""
     echo "Interactive Mode:"
     echo "  Provides menu-driven access to all SchoolCode operations"
     echo ""
     echo "Examples:"
     echo "  sudo ./schoolcode.sh                    # Full automatic setup"
+    echo "  sudo ./schoolcode.sh --install          # Explicit installation"
+    echo "  sudo ./schoolcode.sh --uninstall        # Remove SchoolCode"
     echo "  sudo ./schoolcode.sh --interactive      # Interactive management"
     echo "  sudo ./schoolcode.sh --status           # Check system health"
 }
@@ -424,6 +444,14 @@ main() {
     
     # Parse command line arguments
     case "${1:-}" in
+        --install)
+            # Explicit installation mode (same as no flags)
+            automatic_mode
+            ;;
+        --uninstall)
+            # Non-interactive uninstall mode
+            uninstall_schoolcode_noninteractive
+            ;;
         --interactive|-i)
             interactive_mode
             ;;

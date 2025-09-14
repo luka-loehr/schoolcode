@@ -190,7 +190,7 @@ install_tools() {
 # Setup guest account
 setup_guest_account() {
     print_info "Setting up Guest account..."
-    if "$SCRIPT_DIR/scripts/guest_setup_auto.sh"; then
+    if "$SCRIPT_DIR/scripts/setup/setup_guest_shell_init.sh"; then
         print_success "Guest account setup completed!"
         return 0
     else

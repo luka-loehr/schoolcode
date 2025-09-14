@@ -228,7 +228,7 @@ uninstall_schoolcode() {
 uninstall_schoolcode_noninteractive() {
     print_warning "Removing SchoolCode and all installed tools from Guest accounts..."
     print_info "Uninstalling SchoolCode..."
-    if "$SCRIPT_DIR/scripts/schoolcode-cli.sh" uninstall; then
+    if "$SCRIPT_DIR/scripts/schoolcode-cli.sh" --force uninstall; then
         print_success "SchoolCode uninstallation completed successfully!"
         return 0
     else
@@ -424,7 +424,7 @@ show_help() {
     echo "  Runs compatibility check, system repair, tool installation, and guest setup"
     echo ""
     echo "Uninstall Mode (--uninstall):"
-    echo "  Removes SchoolCode and all installed tools from Guest accounts"
+    echo "  Removes SchoolCode and all installed tools from Guest accounts (no prompts)"
     echo ""
     echo "Interactive Mode:"
     echo "  Provides menu-driven access to all SchoolCode operations"

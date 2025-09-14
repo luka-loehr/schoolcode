@@ -14,14 +14,17 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Get the project root directory
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 # Copy the auto-setup script
 echo "📋 Installing auto-setup script..."
-cp scripts/guest_setup_auto.sh /usr/local/bin/
+cp "$PROJECT_ROOT/scripts/guest_setup_auto.sh" /usr/local/bin/
 chmod 755 /usr/local/bin/guest_setup_auto.sh
 
 # Copy the login-setup script
 echo "📋 Installing login-setup script..."
-cp scripts/setup/guest_login_setup.sh /usr/local/bin/guest_login_setup
+cp "$PROJECT_ROOT/scripts/setup/guest_login_setup.sh" /usr/local/bin/guest_login_setup
 chmod 755 /usr/local/bin/guest_login_setup
 
 # Install the LaunchAgent

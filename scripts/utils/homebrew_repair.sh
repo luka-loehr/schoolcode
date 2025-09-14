@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # Source logging utility
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "${SCRIPT_DIR}/logging.sh"
 
 # Source compatibility checker for version comparison

@@ -9,6 +9,16 @@ SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 [[ -f "$SCRIPT_DIR/logging.sh" ]] && source "$SCRIPT_DIR/logging.sh"
 [[ -f "$SCRIPT_DIR/config.sh" ]] && source "$SCRIPT_DIR/config.sh"
 
+# Ensure Homebrew is in PATH for root users
+if [[ $EUID -eq 0 ]]; then
+    # Add common Homebrew paths for root detection
+    if [[ -d "/opt/homebrew/bin" ]]; then
+        export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+    elif [[ -d "/usr/local/bin" ]]; then
+        export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+    fi
+fi
+
 # Monitoring configuration
 HEALTH_CHECK_FILE="/var/log/schoolcode/health-status.json"
 METRICS_FILE="/var/log/schoolcode/metrics.json"

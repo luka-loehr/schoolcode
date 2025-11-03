@@ -73,9 +73,7 @@ show_help() {
     echo -e "${CLI_BOLD}COMMANDS:${CLI_NC}"
     echo ""
     echo -e "${CLI_INFO}Installation & Setup:${CLI_NC}"
-    echo "  install         Install SchoolCode system"
-    echo "  install-auto    Automatic installation (everything at once)"
-    echo "  install-interactive  Interactive installation (choose components)"
+    echo "  install         Install SchoolCode system (use schoolcode.sh instead)"
     echo "  uninstall       Remove SchoolCode system"
     echo "  update          Update SchoolCode and all dependencies"
     echo ""
@@ -105,9 +103,8 @@ show_help() {
     echo "  --version       Show version information"
     echo ""
     echo -e "${CLI_BOLD}EXAMPLES:${CLI_NC}"
-    echo "  $0 install-interactive  # Choose what to install"
-    echo "  $0 install-auto         # Install everything automatically"
-    echo "  $0 install-auto --no-repair  # Auto install without repair"
+    echo "  $0 status detailed      # Show detailed system status"
+    echo "  $0 repair               # Fix system issues"
     echo "  $0 status --verbose     # Show detailed status"
     echo "  $0 update               # Update to latest version from GitHub"
     echo "  $0 health detailed      # Run detailed health check"
@@ -224,19 +221,12 @@ cmd_install() {
             log_info "Starting SchoolCode installation..."
             
             if [[ "$DRY_RUN" == "true" ]]; then
-                print_info "Would run: setup.sh"
+                print_info "Would run: schoolcode.sh --install"
                 return
             fi
-            
-            # Pass through CLI options to setup.sh
-            local setup_options=""
-            if [[ "$FORCE" == "true" ]]; then
-                setup_options="--force-repair"
-            elif [[ "$NO_REPAIR" == "true" ]]; then
-                setup_options="--skip-repair"
-            fi
-            
-            if SCHOOLCODE_CLI_INSTALL=true bash "$SCRIPT_DIR/setup.sh" $setup_options; then
+
+            # Installation is now handled by the main schoolcode.sh script
+            if bash "$SCRIPT_DIR/../schoolcode.sh" --install; then
                 print_success "SchoolCode installation completed successfully"
                 echo ""
                 # Show health status (no clear to preserve installation logs)
@@ -271,52 +261,8 @@ cmd_install() {
 }
 
 # Automatic installation command
-cmd_install_auto() {
-    require_root
-    
-    print_header
-    log_info "Starting automatic SchoolCode installation..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_info "Would run: install_auto.sh"
-        return
-    fi
-    
-    # Pass through CLI options to auto installer
-    local auto_options=""
-    if [[ "$FORCE" == "true" ]]; then
-        auto_options="--force-repair"
-    elif [[ "$NO_REPAIR" == "true" ]]; then
-        auto_options="--skip-repair"
-    fi
-    
-    if bash "$SCRIPT_DIR/install_auto.sh" $auto_options; then
-        print_success "Automatic installation completed successfully"
-    else
-        print_error "Automatic installation failed"
-        exit 1
-    fi
-}
 
 # Interactive installation command
-cmd_install_interactive() {
-    require_root
-    
-    print_header
-    log_info "Starting interactive SchoolCode installation..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_info "Would run: install_interactive.sh"
-        return
-    fi
-    
-    if bash "$SCRIPT_DIR/install_interactive.sh"; then
-        print_success "Interactive installation completed successfully"
-    else
-        print_error "Interactive installation failed"
-        exit 1
-    fi
-}
 
 # Uninstall commands
 cmd_uninstall() {
@@ -731,8 +677,6 @@ main() {
     # Dispatch to command function
     case "$COMMAND" in
         install)                cmd_install ;;
-        install-auto)           cmd_install_auto ;;
-        install-interactive)    cmd_install_interactive ;;
         uninstall)              cmd_uninstall ;;
         status)                 cmd_status ;;
         health)                 cmd_health ;;

@@ -274,114 +274,6 @@ run_tests() {
     esac
 }
 
-# Interactive mode menu
-interactive_mode() {
-    while true; do
-        print_header
-        echo "Select an operation:"
-        echo ""
-        echo "📋 System Management:"
-        echo "  1) Check Compatibility"
-        echo "  2) System Repair"
-        echo "  3) Show Status"
-        echo ""
-        echo "🔧 Installation & Setup:"
-        echo "  4) Install Tools Only"
-        echo "  5) Setup Guest Account Only"
-        echo "  6) Install Everything (Full Setup)"
-        echo ""
-        echo "🔄 Maintenance:"
-        echo "  7) Update SchoolCode"
-        echo "  8) Uninstall SchoolCode"
-        echo ""
-        echo "📊 Monitoring & Debugging:"
-        echo "  9) View Logs"
-        echo "  10) Run Tests"
-        echo ""
-        echo "  0) Exit"
-        echo ""
-        read -p "Enter your choice (0-10): " choice
-        
-        case $choice in
-            1)
-                echo ""
-                run_compatibility_check
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            2)
-                echo ""
-                run_system_repair
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            3)
-                echo ""
-                show_status
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            4)
-                echo ""
-                install_tools
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            5)
-                echo ""
-                setup_guest_account
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            6)
-                echo ""
-                print_info "Starting full installation..."
-                if run_compatibility_check && run_system_repair && install_tools && setup_guest_account; then
-                    print_success "Full installation completed successfully!"
-                    update_status "ready" "SchoolCode installation completed successfully"
-                else
-                    print_error "Installation failed at some step. Check logs for details."
-                    update_status "error" "SchoolCode installation failed"
-                fi
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            7)
-                echo ""
-                update_schoolcode
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            8)
-                echo ""
-                uninstall_schoolcode
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            9)
-                echo ""
-                show_logs
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            10)
-                echo ""
-                run_tests
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            0)
-                print_info "Goodbye!"
-                exit 0
-                ;;
-            *)
-                print_error "Invalid choice. Please enter a number between 0-10."
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-        esac
-    done
-}
 
 # Automatic mode (no flags) - runs full installation
 automatic_mode() {
@@ -396,13 +288,13 @@ automatic_mode() {
         echo ""
         print_info "You can now:"
         echo "  • Switch to Guest account to test the installation"
-        echo "  • Run './schoolcode.sh' for interactive management"
         echo "  • Run './schoolcode.sh --status' to check system status"
+        echo "  • Use './scripts/schoolcode-cli.sh' for advanced management"
     else
         print_error "Installation failed at some step. Check logs for details."
         update_status "error" "SchoolCode installation failed"
         echo ""
-        print_info "You can run './schoolcode.sh' for interactive troubleshooting."
+        print_info "You can run './schoolcode.sh --status' to check system status."
         exit 1
     fi
 }
@@ -416,7 +308,6 @@ show_help() {
     echo "  sudo ./schoolcode.sh                    # Automatic installation (full setup)"
     echo "  sudo ./schoolcode.sh --install          # Same as above (explicit install)"
     echo "  sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (non-interactive)"
-    echo "  sudo ./schoolcode.sh --interactive      # Interactive mode (menu-driven)"
     echo "  sudo ./schoolcode.sh --status           # Show system status"
     echo "  sudo ./schoolcode.sh --help             # Show this help"
     echo ""
@@ -426,14 +317,13 @@ show_help() {
     echo "Uninstall Mode (--uninstall):"
     echo "  Removes SchoolCode and all installed tools from Guest accounts (no prompts)"
     echo ""
-    echo "Interactive Mode:"
-    echo "  Provides menu-driven access to all SchoolCode operations"
+    echo "Status Mode (--status):"
+    echo "  Shows comprehensive system health and installation status"
     echo ""
     echo "Examples:"
     echo "  sudo ./schoolcode.sh                    # Full automatic setup"
     echo "  sudo ./schoolcode.sh --install          # Explicit installation"
     echo "  sudo ./schoolcode.sh --uninstall        # Remove SchoolCode"
-    echo "  sudo ./schoolcode.sh --interactive      # Interactive management"
     echo "  sudo ./schoolcode.sh --status           # Check system health"
 }
 
@@ -451,9 +341,6 @@ main() {
         --uninstall)
             # Non-interactive uninstall mode
             uninstall_schoolcode_noninteractive
-            ;;
-        --interactive|-i)
-            interactive_mode
             ;;
         --status|-s)
             show_status

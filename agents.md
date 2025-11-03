@@ -48,9 +48,6 @@ SchoolCode/
 ├── scripts/
 │   ├── schoolcode-cli.sh               # CLI interface (legacy)
 │   ├── install.sh                      # Core installation
-│   ├── install_auto.sh                 # Automatic installation
-│   ├── install_interactive.sh          # Interactive installation
-│   ├── guest_setup_auto.sh             # Guest account automation
 │   ├── update.sh                       # Update system
 │   ├── uninstall.sh                    # Uninstall system
 │   ├── utils/                          # Utility scripts
@@ -115,8 +112,6 @@ sudo ./scripts/schoolcode-cli.sh repair
 
 ### Adding New Installation Components
 1. Add to `scripts/install.sh` core installation logic
-2. Update `scripts/install_auto.sh` to include new component
-3. Add option to `scripts/install_interactive.sh` menu
 4. Update CLI commands in `scripts/schoolcode-cli.sh`
 5. Test both installation modes
 6. Update documentation

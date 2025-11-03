@@ -30,20 +30,16 @@ sudo ./schoolcode.sh
 sudo ./schoolcode.sh                    # Install everything
 sudo ./schoolcode.sh --install          # Same as above (explicit)
 sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (no prompts)
-sudo ./schoolcode.sh --interactive      # Choose what to install
 sudo ./schoolcode.sh --status           # Check system health
 sudo ./schoolcode.sh --help             # Show help
 ```
 
-### Advanced CLI (Legacy)
+### Advanced Management
 ```bash
-sudo ./scripts/schoolcode-cli.sh install-auto      # Automatic install
-sudo ./scripts/schoolcode-cli.sh install-interactive # Interactive install
-sudo ./scripts/schoolcode-cli.sh status             # System status
-sudo ./scripts/schoolcode-cli.sh repair            # Fix system issues
-sudo ./scripts/schoolcode-cli.sh update            # Update everything
-sudo ./scripts/schoolcode-cli.sh uninstall         # Remove SchoolCode
-sudo ./scripts/schoolcode-cli.sh logs              # View logs
+sudo ./scripts/schoolcode-cli.sh status detailed    # Detailed system status
+sudo ./scripts/schoolcode-cli.sh repair             # Fix system issues
+sudo ./scripts/schoolcode-cli.sh update             # Update everything
+sudo ./scripts/schoolcode-cli.sh logs               # View system logs
 ```
 
 ## Requirements
@@ -75,8 +71,8 @@ sudo ./schoolcode.sh --status
 # Fix system issues
 sudo ./scripts/schoolcode-cli.sh repair
 
-# View logs
-sudo ./scripts/schoolcode-cli.sh logs error
+# View detailed logs
+sudo ./scripts/schoolcode-cli.sh logs
 ```
 
 ## License

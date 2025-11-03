@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SchoolCode Documentation</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      line-height: 1.6;
+      color: #24292e;
+      background-color: #ffffff;
+    }
+    
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 60px 20px;
+      text-align: center;
+    }
+    
+    header h1 {
+      font-size: 3em;
+      margin-bottom: 0.3em;
+      font-weight: 700;
+    }
+    
+    header p {
+      font-size: 1.3em;
+      opacity: 0.95;
+    }
+    
+    /* Navigation */
+    nav {
+      background-color: #f6f8fa;
+      border-bottom: 1px solid #e1e4e8;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    nav ul {
+      list-style: none;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0;
+    }
+    
+    nav li {
+      margin: 0;
+    }
+    
+    nav a {
+      display: block;
+      padding: 16px 24px;
+      color: #24292e;
+      text-decoration: none;
+      transition: background-color 0.2s;
+    }
+    
+    nav a:hover {
+      background-color: #e1e4e8;
+    }
+    
+    /* Container */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    
+    /* Sections */
+    section {
+      margin-bottom: 60px;
+    }
+    
+    h2 {
+      font-size: 2em;
+      border-bottom: 2px solid #eaecef;
+      padding-bottom: 0.3em;
+      margin-bottom: 1em;
+      color: #24292e;
+    }
+    
+    h3 {
+      font-size: 1.5em;
+      margin-top: 1.5em;
+      margin-bottom: 0.8em;
+      color: #24292e;
+    }
+    
+    h4 {
+      font-size: 1.2em;
+      margin-top: 1.2em;
+      margin-bottom: 0.6em;
+      color: #586069;
+    }
+    
+    /* Code blocks */
+    pre {
+      background-color: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.9em;
+    }
+    
+    pre code {
+      font-size: 0.85em;
+      line-height: 1.45;
+    }
+    
+    /* Inline code */
+    p code, li code {
+      background-color: rgba(27, 31, 35, 0.05);
+      padding: 0.2em 0.4em;
+      border-radius: 3px;
+    }
+    
+    /* Links */
+    a {
+      color: #0366d6;
+      text-decoration: none;
+    }
+    
+    a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Lists */
+    ul, ol {
+      margin: 16px 0;
+      padding-left: 2em;
+    }
+    
+    li {
+      margin: 8px 0;
+    }
+    
+    /* Info boxes */
+    .info-box {
+      background-color: #f1f8ff;
+      border-left: 4px solid #0366d6;
+      padding: 16px;
+      margin: 16px 0;
+      border-radius: 6px;
+    }
+    
+    .warning-box {
+      background-color: #fff5b1;
+      border-left: 4px solid #ffd33d;
+      padding: 16px;
+      margin: 16px 0;
+      border-radius: 6px;
+    }
+    
+    .success-box {
+      background-color: #dcffe4;
+      border-left: 4px solid #28a745;
+      padding: 16px;
+      margin: 16px 0;
+      border-radius: 6px;
+    }
+    
+    /* Feature grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    .feature-card {
+      background-color: #f6f8fa;
+      padding: 24px;
+      border-radius: 6px;
+      border: 1px solid #e1e4e8;
+    }
+    
+    .feature-card h4 {
+      margin-top: 0;
+      color: #0366d6;
+    }
+    
+    /* Footer */
+    footer {
+      background-color: #f6f8fa;
+      border-top: 1px solid #e1e4e8;
+      padding: 40px 20px;
+      text-align: center;
+      margin-top: 60px;
+    }
+    
+    footer p {
+      color: #586069;
+    }
+    
+    /* Command examples */
+    .command {
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      padding: 16px;
+      border-radius: 6px;
+      margin: 16px 0;
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }
+    
+    .command-comment {
+      color: #6a9955;
+    }
+    
+    /* Architecture diagram */
+    .architecture {
+      background-color: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 20px;
+      margin: 20px 0;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border: 1px solid #e1e4e8;
+    }
+    
+    th {
+      background-color: #f6f8fa;
+      font-weight: 600;
+    }
+    
+    tr:nth-child(even) {
+      background-color: #fafbfc;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 2em;
+      }
+      
+      header p {
+        font-size: 1.1em;
+      }
+      
+      nav ul {
+        flex-direction: column;
+      }
+      
+      nav a {
+        border-bottom: 1px solid #e1e4e8;
+      }
+      
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SchoolCode</h1>
+    <p>Automated developer tool deployment for macOS Guest accounts</p>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="#quick-start">Quick Start</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#installation">Installation</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+      <li><a href="https://github.com/luka-loehr/SchoolCode">GitHub</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+    
+    <!-- Quick Start Section -->
+    <section id="quick-start">
+      <h2>Quick Start</h2>
+      
+      <p>SchoolCode provides a safe development environment for students on shared macOS machines. It automatically installs essential developer tools (Python, Homebrew, Git, pip) in Guest accounts with complete system isolation.</p>
+      
+      <div class="info-box">
+        <strong>Requirements:</strong>
+        <ul style="margin-bottom: 0;">
+          <li>macOS 10.14+ (Mojave or newer)</li>
+          <li>Administrator access</li>
+          <li>5GB free disk space</li>
+          <li>Internet connection</li>
+        </ul>
+      </div>
+      
+      <h3>Installation</h3>
+      <div class="command">
+<span class="command-comment"># Clone and install</span>
+git clone https://github.com/luka-loehr/SchoolCode.git
+cd SchoolCode
+sudo ./schoolcode.sh
+      </div>
+      
+      <h3>Basic Commands</h3>
+      <pre><code>sudo ./schoolcode.sh                    # Install everything
+sudo ./schoolcode.sh --install          # Same as above (explicit)
+sudo ./schoolcode.sh --uninstall        # Remove SchoolCode
+sudo ./schoolcode.sh --status           # Check system health
+sudo ./schoolcode.sh --help             # Show help</code></pre>
+      
+      <h3>Advanced Management</h3>
+      <pre><code>sudo ./scripts/schoolcode-cli.sh status detailed    # Detailed status
+sudo ./scripts/schoolcode-cli.sh repair             # Fix issues
+sudo ./scripts/schoolcode-cli.sh update             # Update everything
+sudo ./scripts/schoolcode-cli.sh logs               # View logs</code></pre>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture">
+      <h2>Architecture</h2>
+      
+      <p>SchoolCode uses a simplified, modular architecture with three core components:</p>
+      
+      <div class="architecture">
+SchoolCode/
+├── schoolcode.sh                       # Main entry point
+├── scripts/
+│   ├── install.sh                      # Core installation logic
+│   ├── schoolcode-cli.sh               # Advanced management CLI
+│   ├── update.sh                       # Update system
+│   ├── uninstall.sh                    # Uninstall system
+│   ├── utils/                          # Utility scripts
+│   │   ├── logging.sh                  # Centralized logging
+│   │   ├── config.sh                   # Configuration
+│   │   ├── monitoring.sh               # Health monitoring
+│   │   ├── homebrew_repair.sh          # Homebrew repairs
+│   │   └── python_utils.sh             # Python management
+│   └── setup/                          # Guest account setup
+│       ├── guest_login_setup.sh
+│       ├── guest_tools_setup.sh
+│       └── setup_guest_shell_init.sh
+├── system_repair.sh                    # System repair utility
+├── old_mac_compatibility.sh            # Compatibility checker
+└── tests/                              # Test suite
+      </div>
+      
+      <h3>Component Overview</h3>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h4>schoolcode.sh</h4>
+          <p><strong>Main Entry Point</strong></p>
+          <p>Unified interface for all SchoolCode operations. Handles installation, uninstallation, and status checks.</p>
+        </div>
+        
+        <div class="feature-card">
+          <h4>install.sh</h4>
+          <p><strong>Core Installation Engine</strong></p>
+          <p>Comprehensive installation logic with error handling, backup/restore, and verification.</p>
+        </div>
+        
+        <div class="feature-card">
+          <h4>schoolcode-cli.sh</h4>
+          <p><strong>Advanced Management</strong></p>
+          <p>CLI tool for ongoing management: status checks, repairs, updates, and health monitoring.</p>
+        </div>
+      </div>
+      
+      <h3>Installation Flow</h3>
+      
+      <ol>
+        <li><strong>Compatibility Check</strong> - Validates system requirements (macOS version, disk space, architecture)</li>
+        <li><strong>System Repair</strong> - Fixes common issues (Xcode CLT, certificates, Git, PATH)</li>
+        <li><strong>Tool Installation</strong> - Installs Python (official), Homebrew, Git, pip with proper configuration</li>
+        <li><strong>Guest Setup</strong> - Configures Guest account environment with LaunchAgents and shell initialization</li>
+        <li><strong>Verification</strong> - Tests all installed tools and reports status</li>
+      </ol>
+    </section>
+
+    <!-- Security Section -->
+    <section id="security">
+      <h2>Security Architecture</h2>
+      
+      <div class="success-box">
+        <strong>Core Security Principle:</strong> All Guest user modifications are session-isolated, temporary, and non-destructive. Students can experiment freely without affecting the system or other users.
+      </div>
+      
+      <h3>Security Design</h3>
+      
+      <p>SchoolCode implements multiple layers of security to ensure system integrity:</p>
+      
+      <h4>Guest Account Isolation</h4>
+      <ul>
+        <li><strong>Session-isolated:</strong> Changes affect only the current user's session</li>
+        <li><strong>Temporary:</strong> All modifications reset upon Guest logout</li>
+        <li><strong>Non-destructive:</strong> Guest users cannot break core system tools</li>
+      </ul>
+      
+      <h4>Tool-Specific Security</h4>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th>
+            <th>Security Level</th>
+            <th>Implementation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Python/pip</strong></td>
+            <td>🟢 User Isolation</td>
+            <td>Forces <code>--user</code> flag, installs to <code>~/.local/</code></td>
+          </tr>
+          <tr>
+            <td><strong>Homebrew</strong></td>
+            <td>🔴 Read-Only</td>
+            <td>Blocks all modification commands (<code>install</code>, <code>upgrade</code>, etc.)</td>
+          </tr>
+          <tr>
+            <td><strong>Git</strong></td>
+            <td>🟢 Configuration Isolation</td>
+            <td>User-specific <code>~/.gitconfig</code>, no system-wide changes</td>
+          </tr>
+          <tr>
+            <td><strong>sudo</strong></td>
+            <td>🔴 Blocked</td>
+            <td>Wrapper prevents Guest users from using sudo</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>Security Wrappers</h3>
+      
+      <p>SchoolCode implements security wrappers for critical tools:</p>
+      
+      <h4>Homebrew Wrapper</h4>
+      <pre><code># Blocks dangerous commands
+brew install/uninstall/upgrade/update -> ❌ Blocked
+brew list/info/search -> ✅ Allowed (read-only)</code></pre>
+      
+      <h4>Pip Wrapper</h4>
+      <pre><code># Forces user installations
+pip install package -> pip install --user package
+pip install -g -> ❌ Blocked (system-wide)</code></pre>
+      
+      <h4>Sudo Wrapper</h4>
+      <pre><code># Prevents privilege escalation
+Guest user runs: sudo command -> ❌ Blocked
+Admin user runs: sudo command -> ✅ Allowed</code></pre>
+      
+      <h3>File System Security</h3>
+      
+      <ul>
+        <li><strong>Installation Location:</strong> <code>/opt/schoolcode</code> (admin-owned, read-only for Guest)</li>
+        <li><strong>User Data:</strong> <code>~/.local</code> (user-owned, temporary)</li>
+        <li><strong>Configuration:</strong> <code>/opt/schoolcode/config</code> (enforced pip settings)</li>
+        <li><strong>No System Files:</strong> Never modifies <code>/etc</code>, <code>/usr</code>, <code>/System</code>, <code>/Library</code></li>
+      </ul>
+      
+      <div class="warning-box">
+        <strong>Important:</strong> SchoolCode requires admin privileges for initial installation but ensures Guest users cannot escalate privileges or modify system files.
+      </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section id="installation">
+      <h2>Installation Guide</h2>
+      
+      <h3>Prerequisites</h3>
+      
+      <p>Before installing SchoolCode, ensure your system meets these requirements:</p>
+      
+      <ul>
+        <li>macOS 10.14 (Mojave) or newer</li>
+        <li>Administrator account access</li>
+        <li>At least 5GB free disk space</li>
+        <li>Active internet connection</li>
+        <li>Xcode Command Line Tools (will be installed if missing)</li>
+      </ul>
+      
+      <h3>Step-by-Step Installation</h3>
+      
+      <h4>1. Clone the Repository</h4>
+      <div class="command">
+git clone https://github.com/luka-loehr/SchoolCode.git
+cd SchoolCode
+      </div>
+      
+      <h4>2. Run Compatibility Check (Optional)</h4>
+      <div class="command">
+./old_mac_compatibility.sh
+      </div>
+      
+      <h4>3. Install SchoolCode</h4>
+      <div class="command">
+sudo ./schoolcode.sh
+      </div>
+      
+      <p>The installer will:</p>
+      <ol>
+        <li>Check system compatibility</li>
+        <li>Run system repairs (fix Xcode CLT, certificates, etc.)</li>
+        <li>Install Python from python.org (not Homebrew)</li>
+        <li>Install and configure Homebrew</li>
+        <li>Set up security wrappers</li>
+        <li>Configure Guest account environment</li>
+        <li>Verify all installations</li>
+      </ol>
+      
+      <h3>What Gets Installed</h3>
+      
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h4>Python 3.12+</h4>
+          <p>Official Python from python.org with pip pre-configured for user installations.</p>
+        </div>
+        
+        <div class="feature-card">
+          <h4>Homebrew</h4>
+          <p>Package manager with read-only access for Guest users.</p>
+        </div>
+        
+        <div class="feature-card">
+          <h4>Git</h4>
+          <p>Version control system with user-specific configuration.</p>
+        </div>
+        
+        <div class="feature-card">
+          <h4>Security Wrappers</h4>
+          <p>Wrapper scripts that enforce Guest account isolation.</p>
+        </div>
+      </div>
+      
+      <h3>Post-Installation</h3>
+      
+      <h4>Verify Installation</h4>
+      <div class="command">
+sudo ./schoolcode.sh --status
+      </div>
+      
+      <h4>Test in Guest Account</h4>
+      <ol>
+        <li>Log out of admin account</li>
+        <li>Log in as Guest user</li>
+        <li>Terminal should open automatically</li>
+        <li>Test tools: <code>python3 --version</code>, <code>pip3 --version</code>, <code>git --version</code></li>
+      </ol>
+      
+      <h3>Uninstallation</h3>
+      
+      <p>To completely remove SchoolCode:</p>
+      
+      <div class="command">
+sudo ./schoolcode.sh --uninstall
+      </div>
+      
+      <p>This will:</p>
+      <ul>
+        <li>Remove all SchoolCode files from <code>/opt/schoolcode</code></li>
+        <li>Remove LaunchAgents</li>
+        <li>Clean up Guest account configurations</li>
+        <li>Preserve Homebrew and Python (if you want to keep them)</li>
+      </ul>
+    </section>
+
+    <!-- Troubleshooting Section -->
+    <section id="troubleshooting">
+      <h2>Troubleshooting</h2>
+      
+      <h3>Common Issues</h3>
+      
+      <h4>Installation Fails</h4>
+      
+      <div class="command">
+<span class="command-comment"># Check system compatibility</span>
+./old_mac_compatibility.sh
+
+<span class="command-comment"># Run system repair</span>
+sudo ./scripts/schoolcode-cli.sh repair
+
+<span class="command-comment"># Check logs</span>
+sudo ./scripts/schoolcode-cli.sh logs
+      </div>
+      
+      <h4>Tools Not Working in Guest Account</h4>
+      
+      <div class="command">
+<span class="command-comment"># Check Guest account setup</span>
+sudo ./scripts/schoolcode-cli.sh guest status
+
+<span class="command-comment"># Reinstall Guest setup</span>
+sudo ./scripts/setup/setup_guest_shell_init.sh
+      </div>
+      
+      <h4>Homebrew Issues</h4>
+      
+      <div class="command">
+<span class="command-comment"># Repair Homebrew</span>
+sudo ./scripts/utils/homebrew_repair.sh
+
+<span class="command-comment"># Check Homebrew health</span>
+brew doctor
+      </div>
+      
+      <h4>Python Issues</h4>
+      
+      <div class="command">
+<span class="command-comment"># Check Python installation</span>
+which python3
+python3 --version
+
+<span class="command-comment"># Check pip installation</span>
+which pip3
+pip3 --version
+
+<span class="command-comment"># Test user installation</span>
+pip3 install --user requests
+      </div>
+      
+      <h3>System Health Check</h3>
+      
+      <p>Run a comprehensive system health check:</p>
+      
+      <div class="command">
+sudo ./scripts/schoolcode-cli.sh status detailed
+      </div>
+      
+      <p>This checks:</p>
+      <ul>
+        <li>✅ SchoolCode tools installation</li>
+        <li>✅ Guest account configuration</li>
+        <li>✅ LaunchAgent status</li>
+        <li>✅ Homebrew health</li>
+        <li>✅ File permissions</li>
+        <li>✅ Disk space</li>
+      </ul>
+      
+      <h3>Log Files</h3>
+      
+      <p>SchoolCode maintains detailed logs for troubleshooting:</p>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Log Type</th>
+            <th>Location</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main Log</td>
+            <td><code>/var/log/schoolcode/schoolcode.log</code></td>
+            <td>All operations</td>
+          </tr>
+          <tr>
+            <td>Error Log</td>
+            <td><code>/var/log/schoolcode/schoolcode-error.log</code></td>
+            <td>Errors only</td>
+          </tr>
+          <tr>
+            <td>Guest Log</td>
+            <td><code>/var/log/schoolcode/guest-setup.log</code></td>
+            <td>Guest account setup</td>
+          </tr>
+          <tr>
+            <td>Install Log</td>
+            <td><code>/var/log/schoolcode/install_*.log</code></td>
+            <td>Installation history</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>Getting Help</h3>
+      
+      <p>If you're still experiencing issues:</p>
+      
+      <ol>
+        <li>Check the <a href="https://github.com/luka-loehr/SchoolCode/issues">GitHub Issues</a></li>
+        <li>Review the logs: <code>sudo ./scripts/schoolcode-cli.sh logs</code></li>
+        <li>Run system repair: <code>sudo ./scripts/schoolcode-cli.sh repair</code></li>
+        <li>Create a new issue with log output</li>
+      </ol>
+    </section>
+
+  </div>
+
+  <footer>
+    <p><strong>SchoolCode</strong> - Automated developer tool deployment for macOS Guest accounts</p>
+    <p>© 2025 Luka Löhr | <a href="https://github.com/luka-loehr/SchoolCode">GitHub</a> | Licensed under Apache 2.0</p>
+  </footer>
+
+</body>
+</html>
+

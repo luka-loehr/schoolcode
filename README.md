@@ -60,7 +60,7 @@ sudo ./scripts/schoolcode-cli.sh logs               # View system logs
 
 All modifications are temporary and isolated to Guest accounts. Students can experiment freely without affecting the system or other users.
 
-[SECURITY.md](SECURITY.md) - Detailed security architecture
+📖 **[Full Documentation](https://luka-loehr.github.io/SchoolCode/)** - Comprehensive guide covering architecture, security, installation, and troubleshooting
 
 ## Troubleshooting
 

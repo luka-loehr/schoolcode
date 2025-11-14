@@ -305,13 +305,12 @@ show_help() {
     echo "SchoolCode Hub - Central Management Interface"
     echo ""
     echo "Usage:"
-    echo "  sudo ./schoolcode.sh                    # Automatic installation (full setup)"
-    echo "  sudo ./schoolcode.sh --install          # Same as above (explicit install)"
+    echo "  sudo ./schoolcode.sh                    # Install everything (automatic setup)"
     echo "  sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (non-interactive)"
     echo "  sudo ./schoolcode.sh --status           # Show system status"
     echo "  sudo ./schoolcode.sh --help             # Show this help"
     echo ""
-    echo "Installation Mode (--install or no flags):"
+    echo "Installation Mode (no flags):"
     echo "  Runs compatibility check, system repair, tool installation, and guest setup"
     echo ""
     echo "Uninstall Mode (--uninstall):"
@@ -319,12 +318,6 @@ show_help() {
     echo ""
     echo "Status Mode (--status):"
     echo "  Shows comprehensive system health and installation status"
-    echo ""
-    echo "Examples:"
-    echo "  sudo ./schoolcode.sh                    # Full automatic setup"
-    echo "  sudo ./schoolcode.sh --install          # Explicit installation"
-    echo "  sudo ./schoolcode.sh --uninstall        # Remove SchoolCode"
-    echo "  sudo ./schoolcode.sh --status           # Check system health"
 }
 
 # Main script logic

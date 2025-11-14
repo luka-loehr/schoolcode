@@ -25,18 +25,16 @@ sudo ./schoolcode.sh
 
 ## Commands
 
-### Installation & Management
+### Basic Commands
 ```bash
 sudo ./schoolcode.sh                    # Install everything
-sudo ./schoolcode.sh --install          # Same as above (explicit)
-sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (no prompts)
+sudo ./schoolcode.sh --uninstall        # Remove SchoolCode
 sudo ./schoolcode.sh --status           # Check system health
 sudo ./schoolcode.sh --help             # Show help
 ```
 
-### Advanced Management
+### Advanced Commands
 ```bash
-sudo ./scripts/schoolcode-cli.sh status detailed    # Detailed system status
 sudo ./scripts/schoolcode-cli.sh repair             # Fix system issues
 sudo ./scripts/schoolcode-cli.sh update             # Update everything
 sudo ./scripts/schoolcode-cli.sh logs               # View system logs
@@ -65,13 +63,9 @@ All modifications are temporary and isolated to Guest accounts. Students can exp
 ## Troubleshooting
 
 ```bash
-# Check system health
+# Check system health and fix issues
 sudo ./schoolcode.sh --status
-
-# Fix system issues
 sudo ./scripts/schoolcode-cli.sh repair
-
-# View detailed logs
 sudo ./scripts/schoolcode-cli.sh logs
 ```
 

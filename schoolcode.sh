@@ -228,7 +228,6 @@ uninstall_schoolcode() {
 uninstall_schoolcode_noninteractive() {
     echo "Removing SchoolCode..."
     if "$SCRIPT_DIR/scripts/schoolcode-cli.sh" --force uninstall; then
-        echo "Uninstallation completed."
         return 0
     else
         echo "Uninstallation failed."

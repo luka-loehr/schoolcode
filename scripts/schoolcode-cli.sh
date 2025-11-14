@@ -330,8 +330,8 @@ cmd_repair() {
             print_info "Running system repair..."
             if [[ "$DRY_RUN" == "false" ]]; then
                 local project_root="$(dirname "$SCRIPT_DIR")"
-                if [[ -f "$project_root/system_repair.sh" ]]; then
-                    bash "$project_root/system_repair.sh"
+                if [[ -f "$project_root/scripts/utils/system_repair.sh" ]]; then
+                    bash "$project_root/scripts/utils/system_repair.sh"
                 else
                     print_error "System repair script not found"
                     exit 1
@@ -345,9 +345,9 @@ cmd_repair() {
             print_info "Repairing Xcode Command Line Tools..."
             if [[ "$DRY_RUN" == "false" ]]; then
                 local project_root="$(dirname "$SCRIPT_DIR")"
-                if [[ -f "$project_root/system_repair.sh" ]]; then
+                if [[ -f "$project_root/scripts/utils/system_repair.sh" ]]; then
                     # Run only the Xcode CLT repair function
-                    bash -c "source $project_root/system_repair.sh; check_and_repair_xcode_clt"
+                    bash -c "source $project_root/scripts/utils/system_repair.sh; check_and_repair_xcode_clt"
                 else
                     print_error "System repair script not found"
                     exit 1
@@ -370,8 +370,8 @@ cmd_compatibility() {
             print_info "Checking system compatibility..."
             if [[ "$DRY_RUN" == "false" ]]; then
                 local project_root="$(dirname "$SCRIPT_DIR")"
-                if [[ -f "$project_root/old_mac_compatibility.sh" ]]; then
-                    bash "$project_root/old_mac_compatibility.sh"
+                if [[ -f "$project_root/scripts/utils/old_mac_compatibility.sh" ]]; then
+                    bash "$project_root/scripts/utils/old_mac_compatibility.sh"
                 else
                     print_error "Compatibility checker not found"
                     exit 1
@@ -384,8 +384,8 @@ cmd_compatibility() {
             print_info "Generating compatibility report..."
             if [[ "$DRY_RUN" == "false" ]]; then
                 local project_root="$(dirname "$SCRIPT_DIR")"
-                if [[ -f "$project_root/old_mac_compatibility.sh" ]]; then
-                    bash "$project_root/old_mac_compatibility.sh"
+                if [[ -f "$project_root/scripts/utils/old_mac_compatibility.sh" ]]; then
+                    bash "$project_root/scripts/utils/old_mac_compatibility.sh"
                     print_info "Compatibility report saved to: /tmp/schoolcode_compatibility_report.txt"
                 else
                     print_error "Compatibility checker not found"

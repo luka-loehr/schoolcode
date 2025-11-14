@@ -154,7 +154,7 @@ check_root() {
 # Run compatibility check
 run_compatibility_check() {
     print_info "Running compatibility check..."
-    if "$SCRIPT_DIR/old_mac_compatibility.sh"; then
+    if "$SCRIPT_DIR/scripts/utils/old_mac_compatibility.sh"; then
         print_success "Compatibility check passed!"
         return 0
     else
@@ -166,7 +166,7 @@ run_compatibility_check() {
 # Run system repair
 run_system_repair() {
     print_info "Running system repair..."
-    if "$SCRIPT_DIR/system_repair.sh"; then
+    if "$SCRIPT_DIR/scripts/utils/system_repair.sh"; then
         print_success "System repair completed!"
         return 0
     else

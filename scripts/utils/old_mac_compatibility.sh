@@ -8,9 +8,7 @@ set -euo pipefail
 
 # Source logging utility
 SCRIPT_DIR="$(dirname "$0")"
-if [ -f "${SCRIPT_DIR}/scripts/utils/logging.sh" ]; then
-    source "${SCRIPT_DIR}/scripts/utils/logging.sh"
-elif [ -f "${SCRIPT_DIR}/logging.sh" ]; then
+if [ -f "${SCRIPT_DIR}/logging.sh" ]; then
     source "${SCRIPT_DIR}/logging.sh"
 else
     echo "Warning: Could not find logging utility, using basic logging"

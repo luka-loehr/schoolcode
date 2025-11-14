@@ -403,9 +403,9 @@ verify_system_requirements() {
     
     # First run comprehensive compatibility check
     local project_root="$(dirname "$(dirname "$SCRIPT_DIR")")"
-    if [[ -f "$project_root/old_mac_compatibility.sh" ]]; then
+    if [[ -f "$project_root/scripts/utils/old_mac_compatibility.sh" ]]; then
         log INFO "Running comprehensive compatibility check..."
-        if ! bash "$project_root/old_mac_compatibility.sh"; then
+        if ! bash "$project_root/scripts/utils/old_mac_compatibility.sh"; then
             log ERROR "System compatibility check failed"
             log ERROR "Please check the compatibility report and fix issues before proceeding"
             return 1
@@ -476,8 +476,8 @@ install_missing_dependencies() {
         if [[ "$DRY_RUN" != "true" ]]; then
             # Run system repair script from project root
             local project_root="$(dirname "$(dirname "$SCRIPT_DIR")")"
-            if [[ -f "$project_root/system_repair.sh" ]]; then
-                bash "$project_root/system_repair.sh" || {
+            if [[ -f "$project_root/scripts/utils/system_repair.sh" ]]; then
+                bash "$project_root/scripts/utils/system_repair.sh" || {
                     log ERROR "System repair failed - cannot proceed without prerequisites"
                     return 1
                 }

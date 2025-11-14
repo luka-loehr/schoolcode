@@ -9,15 +9,51 @@ set -euo pipefail
 # Script metadata
 SCRIPT_VERSION="3.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR"
+
+# Detect if running from Homebrew installation
+if [[ "$SCRIPT_DIR" == *"/Cellar/schoolcode"* ]] || [[ "$SCRIPT_DIR" == *"/Homebrew"* ]]; then
+    # Running from Homebrew installation
+    # Scripts are in libexec, main script is in bin
+    # Find libexec directory (parent of bin)
+    HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix 2>/dev/null || echo "/opt/homebrew")}"
+    if [[ "$SCRIPT_DIR" == "$HOMEBREW_PREFIX/bin" ]] || [[ "$SCRIPT_DIR" == "/usr/local/bin" ]]; then
+        # Find the actual Cellar path
+        CELLAR_PATH=$(brew --cellar schoolcode 2>/dev/null || echo "")
+        if [[ -n "$CELLAR_PATH" ]]; then
+            PROJECT_ROOT="$CELLAR_PATH"
+            SCRIPT_DIR="$CELLAR_PATH/libexec/scripts"
+        else
+            # Fallback: try to find libexec relative to bin
+            PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")/libexec"
+            SCRIPT_DIR="$PROJECT_ROOT/scripts"
+        fi
+    else
+        PROJECT_ROOT="$SCRIPT_DIR"
+        SCRIPT_DIR="$PROJECT_ROOT"
+    fi
+else
+    # Running from git clone or other installation
+    PROJECT_ROOT="$SCRIPT_DIR"
+    SCRIPT_DIR="$PROJECT_ROOT"
+fi
+
 STATUS_FILE="$PROJECT_ROOT/.schoolcode-status"
 
 # Source utility libraries
-source "$SCRIPT_DIR/scripts/utils/logging.sh"
+if [[ -f "$SCRIPT_DIR/scripts/utils/logging.sh" ]]; then
+    source "$SCRIPT_DIR/scripts/utils/logging.sh"
+elif [[ -f "$PROJECT_ROOT/libexec/scripts/utils/logging.sh" ]]; then
+    source "$PROJECT_ROOT/libexec/scripts/utils/logging.sh"
+    SCRIPT_DIR="$PROJECT_ROOT/libexec/scripts"
+fi
 
 # Only source config.sh if not showing help (to avoid permission issues)
 if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
-    source "$SCRIPT_DIR/scripts/utils/config.sh"
+    if [[ -f "$SCRIPT_DIR/utils/config.sh" ]]; then
+        source "$SCRIPT_DIR/utils/config.sh"
+    elif [[ -f "$PROJECT_ROOT/libexec/scripts/utils/config.sh" ]]; then
+        source "$PROJECT_ROOT/libexec/scripts/utils/config.sh"
+    fi
 fi
 
 # Color codes for output
@@ -151,10 +187,28 @@ check_root() {
     fi
 }
 
+# Helper function to find script path
+find_script() {
+    local script_name="$1"
+    # Try multiple possible locations
+    if [[ -f "$SCRIPT_DIR/$script_name" ]]; then
+        echo "$SCRIPT_DIR/$script_name"
+    elif [[ -f "$SCRIPT_DIR/scripts/$script_name" ]]; then
+        echo "$SCRIPT_DIR/scripts/$script_name"
+    elif [[ -f "$PROJECT_ROOT/libexec/scripts/$script_name" ]]; then
+        echo "$PROJECT_ROOT/libexec/scripts/$script_name"
+    elif [[ -f "$PROJECT_ROOT/$script_name" ]]; then
+        echo "$PROJECT_ROOT/$script_name"
+    else
+        return 1
+    fi
+}
+
 # Run compatibility check
 run_compatibility_check() {
     print_info "Running compatibility check..."
-    if "$SCRIPT_DIR/scripts/utils/old_mac_compatibility.sh"; then
+    local script_path=$(find_script "utils/old_mac_compatibility.sh" || find_script "old_mac_compatibility.sh")
+    if [[ -n "$script_path" ]] && "$script_path"; then
         print_success "Compatibility check passed!"
         return 0
     else
@@ -166,7 +220,8 @@ run_compatibility_check() {
 # Run system repair
 run_system_repair() {
     print_info "Running system repair..."
-    if "$SCRIPT_DIR/scripts/utils/system_repair.sh"; then
+    local script_path=$(find_script "utils/system_repair.sh" || find_script "system_repair.sh")
+    if [[ -n "$script_path" ]] && "$script_path"; then
         print_success "System repair completed!"
         return 0
     else
@@ -178,7 +233,8 @@ run_system_repair() {
 # Install tools
 install_tools() {
     print_info "Installing development tools..."
-    if "$SCRIPT_DIR/scripts/install.sh"; then
+    local script_path=$(find_script "install.sh")
+    if [[ -n "$script_path" ]] && "$script_path"; then
         print_success "Tools installation completed!"
         return 0
     else
@@ -190,7 +246,8 @@ install_tools() {
 # Setup guest account
 setup_guest_account() {
     print_info "Setting up Guest account..."
-    if "$SCRIPT_DIR/scripts/setup/setup_guest_shell_init.sh"; then
+    local script_path=$(find_script "setup/setup_guest_shell_init.sh")
+    if [[ -n "$script_path" ]] && "$script_path"; then
         print_success "Guest account setup completed!"
         return 0
     else
@@ -202,13 +259,23 @@ setup_guest_account() {
 # Show system status
 show_status() {
     print_info "Checking system status..."
-    "$SCRIPT_DIR/scripts/schoolcode-cli.sh" status detailed
+    local script_path=$(find_script "schoolcode-cli.sh")
+    if [[ -n "$script_path" ]]; then
+        "$script_path" status detailed
+    else
+        print_error "Could not find schoolcode-cli.sh"
+    fi
 }
 
 # Update SchoolCode
 update_schoolcode() {
     print_info "Updating SchoolCode..."
-    "$SCRIPT_DIR/scripts/schoolcode-cli.sh" update
+    local script_path=$(find_script "schoolcode-cli.sh")
+    if [[ -n "$script_path" ]]; then
+        "$script_path" update
+    else
+        print_error "Could not find schoolcode-cli.sh"
+    fi
 }
 
 # Uninstall SchoolCode (interactive)
@@ -218,7 +285,12 @@ uninstall_schoolcode() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_info "Uninstalling SchoolCode..."
-        "$SCRIPT_DIR/scripts/schoolcode-cli.sh" uninstall
+        local script_path=$(find_script "schoolcode-cli.sh")
+        if [[ -n "$script_path" ]]; then
+            "$script_path" uninstall
+        else
+            print_error "Could not find schoolcode-cli.sh"
+        fi
     else
         print_info "Uninstall cancelled."
     fi
@@ -227,7 +299,8 @@ uninstall_schoolcode() {
 # Uninstall SchoolCode (non-interactive)
 uninstall_schoolcode_noninteractive() {
     echo "Removing SchoolCode..."
-    if "$SCRIPT_DIR/scripts/schoolcode-cli.sh" --force uninstall; then
+    local script_path=$(find_script "schoolcode-cli.sh")
+    if [[ -n "$script_path" ]] && "$script_path" --force uninstall; then
         return 0
     else
         echo "Uninstallation failed."
@@ -244,11 +317,17 @@ show_logs() {
     echo "4) Installation logs"
     read -p "Select log type (1-4): " log_choice
     
+    local script_path=$(find_script "schoolcode-cli.sh")
+    if [[ -z "$script_path" ]]; then
+        print_error "Could not find schoolcode-cli.sh"
+        return 1
+    fi
+    
     case $log_choice in
-        1) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs ;;
-        2) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs error ;;
-        3) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs guest ;;
-        4) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs install ;;
+        1) "$script_path" logs ;;
+        2) "$script_path" logs error ;;
+        3) "$script_path" logs guest ;;
+        4) "$script_path" logs install ;;
         *) print_error "Invalid selection" ;;
     esac
 }

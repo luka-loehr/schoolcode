@@ -1,0 +1,70 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Create release tarball
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          tar -czf schoolcode-${VERSION}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='tests' \
+            --exclude='test_schoolcode.py' \
+            --exclude='Formula' \
+            --exclude='*.md' \
+            --exclude='.DS_Store' \
+            .
+
+      - name: Calculate SHA256
+        id: sha256
+        run: |
+          SHA256=$(shasum -a 256 schoolcode-${{ steps.get_version.outputs.version }}.tar.gz | awk '{print $1}')
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "SHA256: $SHA256"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: schoolcode-${{ steps.get_version.outputs.version }}.tar.gz
+          body: |
+            ## SchoolCode ${{ steps.get_version.outputs.version }}
+            
+            ### Installation via Homebrew
+            
+            ```bash
+            brew tap luka-loehr/schoolcode
+            brew install schoolcode
+            ```
+            
+            ### SHA256 Checksum
+            ```
+            ${{ steps.sha256.outputs.sha256 }}
+            ```
+            
+            Update the formula SHA256 with this value.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Output SHA256 for formula
+        run: |
+          echo "::notice::Update Formula/schoolcode.rb with SHA256: ${{ steps.sha256.outputs.sha256 }}"
+

@@ -16,6 +16,17 @@ SchoolCode provides a safe development environment for students on shared macOS 
 
 ## Quick Start
 
+### Install via Homebrew (Recommended)
+
+```bash
+# Add the tap and install
+brew tap luka-loehr/schoolcode
+brew install schoolcode
+# Installation runs automatically - no need to run sudo schoolcode manually
+```
+
+### Install from Source (Development)
+
 ```bash
 # Clone and install
 git clone https://github.com/luka-loehr/SchoolCode.git
@@ -27,6 +38,13 @@ sudo ./schoolcode.sh
 
 ### Basic Commands
 ```bash
+# If installed via Homebrew:
+sudo schoolcode                    # Install everything (runs automatically on brew install)
+sudo schoolcode --uninstall        # Remove SchoolCode
+sudo schoolcode --status           # Check system health
+sudo schoolcode --help             # Show help
+
+# If installed from source:
 sudo ./schoolcode.sh                    # Install everything
 sudo ./schoolcode.sh --uninstall        # Remove SchoolCode
 sudo ./schoolcode.sh --status           # Check system health
@@ -35,6 +53,12 @@ sudo ./schoolcode.sh --help             # Show help
 
 ### Advanced Commands
 ```bash
+# If installed via Homebrew, scripts are in libexec:
+sudo $(brew --prefix schoolcode)/libexec/scripts/schoolcode-cli.sh repair
+sudo $(brew --prefix schoolcode)/libexec/scripts/schoolcode-cli.sh update
+sudo $(brew --prefix schoolcode)/libexec/scripts/schoolcode-cli.sh logs
+
+# If installed from source:
 sudo ./scripts/schoolcode-cli.sh repair             # Fix system issues
 sudo ./scripts/schoolcode-cli.sh update             # Update everything
 sudo ./scripts/schoolcode-cli.sh logs               # View system logs
@@ -62,9 +86,14 @@ All modifications are temporary and isolated to Guest accounts. Students can exp
 
 ```bash
 # Check system health and fix issues
-sudo ./schoolcode.sh --status
-sudo ./scripts/schoolcode-cli.sh repair
-sudo ./scripts/schoolcode-cli.sh logs
+sudo schoolcode --status                    # If installed via Homebrew
+# OR
+sudo ./schoolcode.sh --status              # If installed from source
+
+# Advanced troubleshooting
+sudo $(brew --prefix schoolcode)/libexec/scripts/schoolcode-cli.sh repair  # Homebrew
+# OR
+sudo ./scripts/schoolcode-cli.sh repair    # Source
 ```
 
 ## License

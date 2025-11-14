@@ -8,19 +8,19 @@ set -e
 
 # Check if running with sudo
 if [ "$EUID" -ne 0 ]; then 
-    echo "❌ Please run with sudo: sudo ./uninstall.sh"
+    echo "Error: Please run with sudo: sudo ./uninstall.sh"
     exit 1
 fi
 
 # Only show prompt if not called from CLI
 if [ "$SCHOOLCODE_CLI_UNINSTALL" != "true" ]; then
-    echo "🗑️  SchoolCode Uninstallation"
+    echo "SchoolCode Uninstallation"
     echo ""
     echo "This will remove:"
-    echo "  • LaunchAgents"
-    echo "  • Guest setup scripts"
-    echo "  • Admin tools directory"
-    echo "  • Logs and temporary files"
+    echo "  - LaunchAgents"
+    echo "  - Guest setup scripts"
+    echo "  - Admin tools directory"
+    echo "  - Logs and temporary files"
     echo ""
     echo -n "Continue? (y/N): "
     read -r response
@@ -63,7 +63,7 @@ rm -f /tmp/schoolcode-*.err
 rm -rf /var/log/schoolcode
 
 # Remove PATH entries from admin user's shell configs
-echo "🧹 Cleaning PATH entries from admin user's shell profiles..."
+# (Silent - no output needed)
 
 # Determine the original (admin) user who ran sudo
 ORIGINAL_USER="${SUDO_USER:-$(whoami)}"
@@ -95,7 +95,7 @@ fi
 
 # Only show completion message if not called from CLI
 if [ "$SCHOOLCODE_CLI_UNINSTALL" != "true" ]; then
-    echo "✅ Uninstallation completed!"
+    echo "Uninstallation completed."
     echo ""
     echo "Note: Homebrew and packages (git, python) were NOT removed."
 fi

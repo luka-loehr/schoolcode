@@ -270,11 +270,10 @@ cmd_uninstall() {
     
     confirm_operation "This will remove all SchoolCode components from the system."
     
-    print_info "Removing SchoolCode..."
     if [[ "$DRY_RUN" == "false" ]]; then
         SCHOOLCODE_CLI_UNINSTALL=true bash "$SCRIPT_DIR/uninstall.sh"
     fi
-    print_success "SchoolCode uninstallation completed"
+    echo "Uninstallation completed."
     echo ""
     echo "Note: Homebrew and packages (git, python) were NOT removed."
 }

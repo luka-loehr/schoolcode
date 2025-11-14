@@ -28,10 +28,30 @@ When releasing a new version:
 
 ## Formula Details
 
-- **Installation**: Runs `sudo schoolcode` automatically via `post_install` hook
+- **Installation**: Runs `sudo schoolcode --install` automatically via `post_install` hook
 - **Uninstallation**: Runs `sudo schoolcode --uninstall` before removing files
-- **Scripts Location**: Installed to `libexec/scripts/`
-- **Main Binary**: `schoolcode` in Homebrew's bin directory
+- **Scripts Location**: Installed to `libexec/scripts/` (Homebrew standard)
+- **Main Binary**: `schoolcode` in Homebrew's bin directory (symlinked from Cellar)
+- **Version File**: `version.txt` copied to `libexec/` for version tracking
+- **Status File**: Stored in `/opt/homebrew/var/schoolcode/.schoolcode-status` (writable location)
+
+## File Structure After Installation
+
+```
+/opt/homebrew/
+├── bin/schoolcode                           # Main executable (symlink)
+├── Cellar/schoolcode/3.0.0/
+│   ├── bin/schoolcode                       # Actual script
+│   └── libexec/
+│       ├── scripts/                         # All SchoolCode scripts
+│       │   ├── install.sh
+│       │   ├── uninstall.sh
+│       │   ├── setup/
+│       │   └── utils/
+│       └── version.txt                      # Version information
+└── var/schoolcode/
+    └── .schoolcode-status                   # Installation status (writable)
+```
 
 ## Testing Locally
 

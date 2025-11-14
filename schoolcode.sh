@@ -7,29 +7,34 @@
 set -euo pipefail
 
 # Script metadata
-SCRIPT_VERSION="3.0.0"
+SCRIPT_VERSION="3.0.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Detect if running from Homebrew installation
 if [[ "$SCRIPT_DIR" == *"/Cellar/schoolcode"* ]] || [[ "$SCRIPT_DIR" == *"/Homebrew"* ]]; then
     # Running from Homebrew installation
-    # Scripts are in libexec, main script is in bin
-    # Find libexec directory (parent of bin)
-    HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix 2>/dev/null || echo "/opt/homebrew")}"
-    if [[ "$SCRIPT_DIR" == "$HOMEBREW_PREFIX/bin" ]] || [[ "$SCRIPT_DIR" == "/usr/local/bin" ]]; then
-        # Find the actual Cellar path
-        CELLAR_PATH=$(brew --cellar schoolcode 2>/dev/null || echo "")
-        if [[ -n "$CELLAR_PATH" ]]; then
-            PROJECT_ROOT="$CELLAR_PATH"
-            SCRIPT_DIR="$CELLAR_PATH/libexec/scripts"
-        else
-            # Fallback: try to find libexec relative to bin
-            PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")/libexec"
-            SCRIPT_DIR="$PROJECT_ROOT/scripts"
-        fi
+    # Scripts are in libexec/scripts, main script is in bin
+    
+    # First, try to find the Cellar path directly
+    if [[ "$SCRIPT_DIR" == *"/Cellar/schoolcode"* ]]; then
+        # Extract version from path: /opt/homebrew/Cellar/schoolcode/3.0.0/bin -> /opt/homebrew/Cellar/schoolcode/3.0.0
+        CELLAR_PATH="${SCRIPT_DIR%/bin}"
+        PROJECT_ROOT="$CELLAR_PATH"
+        SCRIPT_DIR="$CELLAR_PATH/libexec/scripts"
     else
-        PROJECT_ROOT="$SCRIPT_DIR"
-        SCRIPT_DIR="$PROJECT_ROOT"
+        # Running from symlinked location (e.g., /opt/homebrew/bin/schoolcode)
+        # Try to find actual Cellar path
+        HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-$(brew --prefix 2>/dev/null || echo "/opt/homebrew")}"
+        CELLAR_PATH=$(brew --cellar schoolcode 2>/dev/null || echo "")
+        
+        if [[ -n "$CELLAR_PATH" ]] && [[ -d "$CELLAR_PATH" ]]; then
+            # Find latest version directory
+            LATEST_VERSION=$(ls -1 "$CELLAR_PATH" 2>/dev/null | sort -V | tail -1)
+            if [[ -n "$LATEST_VERSION" ]] && [[ -d "$CELLAR_PATH/$LATEST_VERSION" ]]; then
+                PROJECT_ROOT="$CELLAR_PATH/$LATEST_VERSION"
+                SCRIPT_DIR="$PROJECT_ROOT/libexec/scripts"
+            fi
+        fi
     fi
 else
     # Running from git clone or other installation
@@ -37,22 +42,50 @@ else
     SCRIPT_DIR="$PROJECT_ROOT"
 fi
 
-STATUS_FILE="$PROJECT_ROOT/.schoolcode-status"
+# Status file location - use a writable directory
+if [[ "$PROJECT_ROOT" == *"/Cellar/schoolcode"* ]]; then
+    # Homebrew installation - use /usr/local/var or /opt/homebrew/var
+    HOMEBREW_VAR="${HOMEBREW_PREFIX:-/opt/homebrew}/var"
+    STATUS_FILE="$HOMEBREW_VAR/schoolcode/.schoolcode-status"
+    mkdir -p "$HOMEBREW_VAR/schoolcode" 2>/dev/null || true
+else
+    # Git clone or other installation
+    STATUS_FILE="$PROJECT_ROOT/.schoolcode-status"
+fi
 
 # Source utility libraries
-if [[ -f "$SCRIPT_DIR/scripts/utils/logging.sh" ]]; then
-    source "$SCRIPT_DIR/scripts/utils/logging.sh"
+# Logging is required for proper output
+LOGGING_SH=""
+if [[ -f "$SCRIPT_DIR/utils/logging.sh" ]]; then
+    LOGGING_SH="$SCRIPT_DIR/utils/logging.sh"
+elif [[ -f "$SCRIPT_DIR/scripts/utils/logging.sh" ]]; then
+    LOGGING_SH="$SCRIPT_DIR/scripts/utils/logging.sh"
 elif [[ -f "$PROJECT_ROOT/libexec/scripts/utils/logging.sh" ]]; then
-    source "$PROJECT_ROOT/libexec/scripts/utils/logging.sh"
-    SCRIPT_DIR="$PROJECT_ROOT/libexec/scripts"
+    LOGGING_SH="$PROJECT_ROOT/libexec/scripts/utils/logging.sh"
+    # Update SCRIPT_DIR to point to actual scripts location
+    if [[ -d "$PROJECT_ROOT/libexec/scripts" ]]; then
+        SCRIPT_DIR="$PROJECT_ROOT/libexec/scripts"
+    fi
+fi
+
+if [[ -n "$LOGGING_SH" ]] && [[ -f "$LOGGING_SH" ]]; then
+    source "$LOGGING_SH"
+else
+    # Fallback if logging.sh not found
+    echo "Warning: Could not find logging.sh" >&2
 fi
 
 # Only source config.sh if not showing help (to avoid permission issues)
 if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+    CONFIG_SH=""
     if [[ -f "$SCRIPT_DIR/utils/config.sh" ]]; then
-        source "$SCRIPT_DIR/utils/config.sh"
+        CONFIG_SH="$SCRIPT_DIR/utils/config.sh"
     elif [[ -f "$PROJECT_ROOT/libexec/scripts/utils/config.sh" ]]; then
-        source "$PROJECT_ROOT/libexec/scripts/utils/config.sh"
+        CONFIG_SH="$PROJECT_ROOT/libexec/scripts/utils/config.sh"
+    fi
+    
+    if [[ -n "$CONFIG_SH" ]] && [[ -f "$CONFIG_SH" ]]; then
+        source "$CONFIG_SH" || true  # Don't fail if config sourcing has issues
     fi
 fi
 
@@ -91,13 +124,25 @@ print_info() {
 
 # Status reporting functions
 get_schoolcode_version() {
-    local version="latest"
+    local version="$SCRIPT_VERSION"
+    
+    # Try to read from version.txt in various locations
+    local version_file=""
     if [[ -f "$PROJECT_ROOT/version.txt" ]]; then
-        local file_version=$(cat "$PROJECT_ROOT/version.txt" 2>/dev/null | head -1 | tr -d '\n\r')
+        version_file="$PROJECT_ROOT/version.txt"
+    elif [[ -f "$PROJECT_ROOT/libexec/version.txt" ]]; then
+        version_file="$PROJECT_ROOT/libexec/version.txt"
+    elif [[ -f "$SCRIPT_DIR/../version.txt" ]]; then
+        version_file="$SCRIPT_DIR/../version.txt"
+    fi
+    
+    if [[ -n "$version_file" ]] && [[ -f "$version_file" ]]; then
+        local file_version=$(cat "$version_file" 2>/dev/null | head -1 | tr -d '\n\r')
         if [[ -n "$file_version" ]]; then
             version="$file_version"
         fi
     fi
+    
     echo "$version"
 }
 
@@ -117,12 +162,6 @@ get_installer_ip() {
 update_status() {
     local status="$1"
     local message="${2:-}"
-    
-    # Check if marker file exists (created by installer)
-    if [[ ! -f "$STATUS_FILE" ]]; then
-        echo "Warning: Marker file not found at $STATUS_FILE (should be created by installer)" >&2
-        return 1
-    fi
     
     # Validate status value
     case "$status" in
@@ -169,13 +208,22 @@ EOF
 )
     fi
     
+    # Ensure directory exists
+    local status_dir=$(dirname "$STATUS_FILE")
+    if [[ ! -d "$status_dir" ]]; then
+        mkdir -p "$status_dir" 2>/dev/null || {
+            echo "Warning: Failed to create status directory: $status_dir" >&2
+            return 1
+        }
+    fi
+    
     # Write status file with error handling
     if echo "$status_data" > "$STATUS_FILE" 2>/dev/null; then
         echo "Status updated: $status"
         return 0
     else
-        echo "Error: Failed to update status file: $STATUS_FILE" >&2
-        return 1
+        echo "Warning: Failed to update status file: $STATUS_FILE (this is non-critical)" >&2
+        return 0  # Don't fail the installation just because we can't write status
     fi
 }
 
@@ -190,18 +238,33 @@ check_root() {
 # Helper function to find script path
 find_script() {
     local script_name="$1"
-    # Try multiple possible locations
+    # Try multiple possible locations in order of preference
+    
+    # Homebrew installation: scripts are in libexec/scripts/
+    if [[ -f "$PROJECT_ROOT/libexec/scripts/$script_name" ]]; then
+        echo "$PROJECT_ROOT/libexec/scripts/$script_name"
+        return 0
+    fi
+    
+    # Direct SCRIPT_DIR location
     if [[ -f "$SCRIPT_DIR/$script_name" ]]; then
         echo "$SCRIPT_DIR/$script_name"
-    elif [[ -f "$SCRIPT_DIR/scripts/$script_name" ]]; then
-        echo "$SCRIPT_DIR/scripts/$script_name"
-    elif [[ -f "$PROJECT_ROOT/libexec/scripts/$script_name" ]]; then
-        echo "$PROJECT_ROOT/libexec/scripts/$script_name"
-    elif [[ -f "$PROJECT_ROOT/$script_name" ]]; then
-        echo "$PROJECT_ROOT/$script_name"
-    else
-        return 1
+        return 0
     fi
+    
+    # Git clone: scripts are in scripts/
+    if [[ -f "$SCRIPT_DIR/scripts/$script_name" ]]; then
+        echo "$SCRIPT_DIR/scripts/$script_name"
+        return 0
+    fi
+    
+    # Root directory fallback
+    if [[ -f "$PROJECT_ROOT/$script_name" ]]; then
+        echo "$PROJECT_ROOT/$script_name"
+        return 0
+    fi
+    
+    return 1
 }
 
 # Run compatibility check

@@ -21,14 +21,28 @@ class Schoolcode < Formula
     # Install all scripts to libexec/scripts
     libexec.install Dir["scripts"]
     
+    # Install version.txt to libexec
+    libexec.install "version.txt" if File.exist?("version.txt")
+    
     # Make all scripts executable
     Dir["#{libexec}/**/*.sh"].each { |f| chmod 0755, f }
+    
+    # Make main script executable
+    chmod 0755, bin/"schoolcode"
   end
 
   def post_install
     # Run SchoolCode installation script
     # This will perform full installation: compatibility check, system repair, tool installation, guest setup
-    system "sudo", "#{bin}/schoolcode"
+    ohai "Running SchoolCode installation..."
+    ohai "This requires sudo privileges and will set up Guest account tools."
+    
+    # Run with explicit error handling
+    unless system "sudo", "#{bin}/schoolcode", "--install"
+      opoo "SchoolCode installation encountered an issue."
+      opoo "You can manually complete installation by running:"
+      opoo "  sudo schoolcode --install"
+    end
   end
 
   def uninstall

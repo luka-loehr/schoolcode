@@ -34,8 +34,8 @@ sudo ./scripts/schoolcode-cli.sh logs error        # View error logs
 - `schoolcode.sh` - Main entry point (NEW - use this first)
 - `scripts/schoolcode-cli.sh` - CLI interface (legacy)
 - `scripts/install.sh` - Core installation logic
-- `system_repair.sh` - System repair functionality
-- `old_mac_compatibility.sh` - Compatibility checking
+- `scripts/utils/system_repair.sh` - System repair functionality
+- `scripts/utils/old_mac_compatibility.sh` - Compatibility checking
 - `scripts/utils/logging.sh` - Logging system
 - `scripts/setup/` - Guest account management
 
@@ -56,13 +56,13 @@ SchoolCode/
 │   │   ├── monitoring.sh               # System health monitoring
 │   │   ├── homebrew_repair.sh          # Homebrew-specific repairs
 │   │   ├── install_official_python.sh  # Python installation
-│   │   └── python_utils.sh             # Python management
+│   │   ├── python_utils.sh             # Python management
+│   │   ├── system_repair.sh            # System repair utility
+│   │   └── old_mac_compatibility.sh    # Compatibility checker
 │   └── setup/                          # Guest account setup
 │       ├── guest_login_setup.sh
 │       ├── guest_tools_setup.sh
 │       └── setup_guest_shell_init.sh
-├── system_repair.sh                    # System repair utility
-├── old_mac_compatibility.sh            # Compatibility checker
 └── tests/                              # Test suite
 ```
 
@@ -105,7 +105,7 @@ sudo ./scripts/schoolcode-cli.sh logs error
 sudo ./scripts/schoolcode-cli.sh repair
 
 # Check compatibility
-./old_mac_compatibility.sh
+./scripts/utils/old_mac_compatibility.sh
 ```
 
 ## 🔧 Common Tasks for AI Agents
@@ -117,7 +117,7 @@ sudo ./scripts/schoolcode-cli.sh repair
 6. Update documentation
 
 ### Fixing System Issues
-1. Add repair logic to `system_repair.sh`
+1. Add repair logic to `scripts/utils/system_repair.sh`
 2. Test repair function independently
 3. Integrate into installation flow
 4. Add CLI command for manual repair
@@ -208,7 +208,7 @@ sudo ./scripts/schoolcode-cli.sh monitor 30
 #### Installation Failures
 ```bash
 # Check compatibility
-./old_mac_compatibility.sh
+./scripts/utils/old_mac_compatibility.sh
 
 # Run system repair
 sudo ./scripts/schoolcode-cli.sh repair
@@ -300,7 +300,7 @@ fi
 ### When Debugging
 1. **Check Health**: `sudo ./schoolcode.sh --status`
 2. **View Logs**: `sudo ./scripts/schoolcode-cli.sh logs`
-3. **Run Compatibility**: `./old_mac_compatibility.sh`
+3. **Run Compatibility**: `./scripts/utils/old_mac_compatibility.sh`
 4. **Test Components**: Individual script testing
 
 ## 📚 Additional Resources

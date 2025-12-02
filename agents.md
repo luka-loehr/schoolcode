@@ -154,9 +154,6 @@ fi
 
 ### Test Commands
 ```bash
-# Run Python tests
-python3 test_schoolcode.py
-
 # Run shell script tests
 ./tests/test_installation.sh
 

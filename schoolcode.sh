@@ -380,56 +380,6 @@ show_logs() {
     esac
 }
 
-# Run tests
-run_tests() {
-    print_info "Running SchoolCode tests..."
-    echo "1) Python tests"
-    echo "2) Shell script tests"
-    echo "3) Both"
-    read -p "Select test type (1-3): " test_choice
-    
-    local test_py=""
-    local test_sh=""
-    
-    # Find test files
-    if [[ -f "$PROJECT_ROOT/test_schoolcode.py" ]]; then
-        test_py="$PROJECT_ROOT/test_schoolcode.py"
-    elif [[ -f "$SCRIPT_DIR/test_schoolcode.py" ]]; then
-        test_py="$SCRIPT_DIR/test_schoolcode.py"
-    fi
-    
-    if [[ -f "$PROJECT_ROOT/tests/test_installation.sh" ]]; then
-        test_sh="$PROJECT_ROOT/tests/test_installation.sh"
-    elif [[ -f "$SCRIPT_DIR/tests/test_installation.sh" ]]; then
-        test_sh="$SCRIPT_DIR/tests/test_installation.sh"
-    fi
-    
-    case $test_choice in
-        1) 
-            if [[ -n "$test_py" ]]; then
-                python3 "$test_py"
-            else
-                print_error "Could not find test_schoolcode.py"
-            fi
-            ;;
-        2) 
-            if [[ -n "$test_sh" ]]; then
-                "$test_sh"
-            else
-                print_error "Could not find test_installation.sh"
-            fi
-            ;;
-        3) 
-            if [[ -n "$test_py" ]]; then
-                python3 "$test_py"
-            fi
-            if [[ -n "$test_sh" ]]; then
-                "$test_sh"
-            fi
-            ;;
-        *) print_error "Invalid selection" ;;
-    esac
-}
 
 
 # Automatic mode (no flags) - runs full installation

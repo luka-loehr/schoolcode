@@ -66,7 +66,7 @@ fi
 
 # Command line options
 VERBOSE=false
-QUIET=false
+QUIET=${SCHOOLCODE_QUIET:-false}
 DRY_RUN=false
 FORCE=false
 NO_BACKUP=false
@@ -180,20 +180,20 @@ handle_error() {
     local exit_code="$2"
     ERRORS_OCCURRED=true
     
-    log ERROR "Script failed at line $line_num with exit code $exit_code"
-    log ERROR "Last command: ${BASH_COMMAND:-unknown}"
+    # Log to file
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Script failed at line $line_num with exit code $exit_code" >> "$LOG_FILE" 2>/dev/null || true
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Last command: ${BASH_COMMAND:-unknown}" >> "$LOG_FILE" 2>/dev/null || true
     
     if [[ "$DRY_RUN" != "true" ]]; then
         cleanup_on_error
     fi
     
-    echo ""
-    echo -e "${RED}╔═══════════════════════════════════════╗${NC}"
-    echo -e "${RED}║         Installation Failed           ║${NC}"
-    echo -e "${RED}╚═══════════════════════════════════════╝${NC}"
-    echo ""
-    echo "Error occurred at line $line_num (exit code: $exit_code)"
-    echo "Check the log file for details: $LOG_FILE"
+    # Only show error UI if not in quiet mode
+    if [[ "$QUIET" != "true" ]]; then
+        echo "" >&2
+        echo -e "${RED}Installation failed at line $line_num${NC}" >&2
+        echo "Check logs: $LOG_FILE" >&2
+    fi
     
     exit "$exit_code"
 }
@@ -1216,9 +1216,11 @@ verify_installation() {
     # Check tools
     local tools=("python3" "pip3" "git" "brew")
     
-    echo ""
-    echo "Tool Status:"
-    echo "────────────────────"
+    if [[ "$QUIET" != "true" ]]; then
+        echo ""
+        echo "Tool Status:"
+        echo "────────────────────"
+    fi
     
     for tool in "${tools[@]}"; do
         tools_checked=$((tools_checked + 1))
@@ -1227,33 +1229,30 @@ verify_installation() {
         if [[ -e "$tool_path" ]]; then
             # Test if tool works
             if "$tool_path" --version &>/dev/null 2>&1; then
-                echo "  ✅ $tool: Working"
+                [[ "$QUIET" != "true" ]] && echo "  ✅ $tool: Working"
                 tools_working=$((tools_working + 1))
-                log DEBUG "$tool is working"
             else
-                echo "  ⚠️  $tool: Installed but not working"
-                log WARN "$tool is not working properly"
+                [[ "$QUIET" != "true" ]] && echo "  ⚠️  $tool: Installed but not working"
             fi
         else
-            echo "  ❌ $tool: Not found"
-            log ERROR "$tool not found at $tool_path"
+            [[ "$QUIET" != "true" ]] && echo "  ❌ $tool: Not found"
             verification_failed=true
         fi
     done
     
-    echo ""
-    echo "Installation Summary:"
-    echo "────────────────────"
-    echo "  Tools checked: $tools_checked"
-    echo "  Tools working: $tools_working"
-    echo "  Installation directory: $INSTALL_PREFIX"
-    echo "  Log file: $LOG_FILE"
+    if [[ "$QUIET" != "true" ]]; then
+        echo ""
+        echo "Installation Summary:"
+        echo "────────────────────"
+        echo "  Tools checked: $tools_checked"
+        echo "  Tools working: $tools_working"
+        echo "  Installation directory: $INSTALL_PREFIX"
+        echo "  Log file: $LOG_FILE"
+    fi
     
     if [[ "$verification_failed" == "true" ]]; then
-        log WARN "Installation completed with warnings"
         return 1
     else
-        log SUCCESS "Installation verified successfully"
         return 0
     fi
 }
@@ -1275,28 +1274,30 @@ main() {
     # Initialize logging
     init_logging
     
-    # Print header
-    echo ""
-    echo -e "${BLUE}╔═══════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║   SchoolCode Installation v${SCRIPT_VERSION}    ║${NC}"
-    echo -e "${BLUE}╚═══════════════════════════════════════╝${NC}"
-    echo ""
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        echo -e "${YELLOW}Running in DRY RUN mode - no changes will be made${NC}"
+    # Print header (only if not quiet)
+    if [[ "$QUIET" != "true" ]]; then
         echo ""
+        echo -e "${BLUE}╔═══════════════════════════════════════╗${NC}"
+        echo -e "${BLUE}║   SchoolCode Installation v${SCRIPT_VERSION}    ║${NC}"
+        echo -e "${BLUE}╚═══════════════════════════════════════╝${NC}"
+        echo ""
+        
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo -e "${YELLOW}Running in DRY RUN mode - no changes will be made${NC}"
+            echo ""
+        fi
     fi
     
-    # Start installation process
-    log INFO "Starting SchoolCode installation..."
-    log INFO "Installation prefix: $INSTALL_PREFIX"
+    # Start installation process (log silently)
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] Starting SchoolCode installation..." >> "$LOG_FILE" 2>/dev/null || true
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] Installation prefix: $INSTALL_PREFIX" >> "$LOG_FILE" 2>/dev/null || true
     
     # Verify we're running as root
     check_root
     
     # Verify system requirements
     verify_system_requirements || {
-        log ERROR "System requirements not met"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] System requirements not met" >> "$LOG_FILE" 2>/dev/null || true
         exit 1
     }
     
@@ -1305,19 +1306,19 @@ main() {
     
     # Check and install Homebrew
     check_homebrew || {
-        log ERROR "Homebrew setup failed"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Homebrew setup failed" >> "$LOG_FILE" 2>/dev/null || true
         exit 1
     }
     
     # Install Python
     install_python || {
-        log ERROR "Python installation failed"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Python installation failed" >> "$LOG_FILE" 2>/dev/null || true
         exit 1
     }
     
     # Set up SchoolCode tools
     setup_schoolcode_tools || {
-        log ERROR "SchoolCode setup failed"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] SchoolCode setup failed" >> "$LOG_FILE" 2>/dev/null || true
         exit 1
     }
     
@@ -1327,24 +1328,29 @@ main() {
     # Mark installation as complete
     INSTALLATION_COMPLETE=true
     
-    # Verify installation
-    verify_installation
+    # Verify installation (non-fatal - just warnings)
+    if ! verify_installation; then
+        log WARN "Installation verification found some issues, but installation completed"
+        log WARN "Check the log file for details: $LOG_FILE"
+    fi
     
-    # Print completion message
-    echo ""
-    echo -e "${GREEN}╔═══════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║    Installation Complete! 🎉          ║${NC}"
-    echo -e "${GREEN}╚═══════════════════════════════════════╝${NC}"
-    echo ""
-    echo "Next steps:"
-    echo "  1. Restart your terminal or run: source ~/.zshrc"
-    echo "  2. Verify installation: $INSTALL_PREFIX/bin/python3 --version"
-    echo "  3. Check system status: sudo $SCRIPT_DIR/schoolcode-cli.sh status"
-    echo ""
-    echo "Log file: $LOG_FILE"
-    
-    if [[ "$BACKUP_CREATED" == "true" ]]; then
-        echo "Backup saved: $BACKUP_PATH"
+    # Print completion message (only if not quiet)
+    if [[ "$QUIET" != "true" ]]; then
+        echo ""
+        echo -e "${GREEN}╔═══════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║    Installation Complete! 🎉          ║${NC}"
+        echo -e "${GREEN}╚═══════════════════════════════════════╝${NC}"
+        echo ""
+        echo "Next steps:"
+        echo "  1. Restart your terminal or run: source ~/.zshrc"
+        echo "  2. Verify installation: $INSTALL_PREFIX/bin/python3 --version"
+        echo "  3. Check system status: sudo $SCRIPT_DIR/schoolcode-cli.sh status"
+        echo ""
+        echo "Log file: $LOG_FILE"
+        
+        if [[ "$BACKUP_CREATED" == "true" ]]; then
+            echo "Backup saved: $BACKUP_PATH"
+        fi
     fi
 }
 

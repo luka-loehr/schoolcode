@@ -1,7 +1,3 @@
-<!--
-Copyright (c) 2025 Luka Löhr
--->
-
 # SchoolCode
 
 Automated developer tool deployment for macOS Guest accounts.
@@ -12,16 +8,14 @@ Automated developer tool deployment for macOS Guest accounts.
 
 ## Overview
 
-SchoolCode automates setup of a complete, isolated development environment for students on shared macOS machines. It installs essential developer tools (Python, Homebrew, Git, pip) with security wrappers that prevent Guest accounts from modifying system-wide packages or using sudo.
+SchoolCode automates setup of a complete development environment for students on shared macOS machines. It installs Python, Homebrew, Git, and pip with security wrappers that prevent Guest accounts from modifying system packages or using sudo.
 
-**Key Features:**
-- ✅ Automatic system compatibility checking
-- ✅ Non-interactive Homebrew installation (no password prompts)
-- ✅ Official Python from python.org with Homebrew fallback
-- ✅ Guest account isolation with security wrappers
-- ✅ Comprehensive error handling and logging
-- ✅ System repair utilities for fixing common issues
-- ✅ Complete uninstall removes all traces
+## Requirements
+
+- macOS 10.14+ (Mojave or newer)
+- Administrator (sudo) privileges
+- ~2GB free disk space
+- Internet connection
 
 ## Quick Start
 
@@ -37,226 +31,81 @@ Verify installation:
 sudo ./schoolcode.sh --status
 ```
 
-## Using SchoolCode
-
-### Primary Interface (schoolcode.sh)
-
-The main `schoolcode.sh` script is your primary interface for installation and management:
+## Basic Commands
 
 ```bash
-sudo ./schoolcode.sh                    # Install everything (full setup)
-sudo ./schoolcode.sh --install          # Same as above (explicit)
-sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (non-interactive)
+sudo ./schoolcode.sh                    # Install everything
 sudo ./schoolcode.sh --status           # Check system health
+sudo ./schoolcode.sh --uninstall        # Remove SchoolCode
+sudo ./schoolcode.sh --logs             # View logs interactively
 sudo ./schoolcode.sh --help             # Show help
 ```
 
-### Log Viewing
+## What Gets Installed
 
-View detailed logs with the log viewer:
-
-```bash
-./schoolcode.sh --logs                  # Interactive log menu
-./schoolcode.sh --logs errors 50        # Show last 50 error logs
-./schoolcode.sh --logs install          # Show latest installation log
-./schoolcode.sh --logs guest 100        # Show last 100 guest setup logs
-./schoolcode.sh --logs warnings         # Show warnings
-./schoolcode.sh --logs today            # Show today's logs
-```
-
-### Advanced CLI (schoolcode-cli.sh)
-
-For advanced management, use the CLI tool. This is the legacy interface that provides granular control:
-
-#### System Management
-```bash
-sudo ./scripts/schoolcode-cli.sh status [detailed]       # Show system status
-sudo ./scripts/schoolcode-cli.sh health [detailed]       # Run health checks
-sudo ./scripts/schoolcode-cli.sh repair                  # Fix system issues
-sudo ./scripts/schoolcode-cli.sh compatibility           # Check system compatibility
-```
-
-#### Installation & Uninstallation
-```bash
-sudo ./scripts/schoolcode-cli.sh install [--no-backup]   # Install SchoolCode
-sudo ./scripts/schoolcode-cli.sh uninstall               # Remove SchoolCode
-```
-
-#### Configuration & Tools
-```bash
-sudo ./scripts/schoolcode-cli.sh config show             # Show current config
-sudo ./scripts/schoolcode-cli.sh config edit             # Edit configuration
-sudo ./scripts/schoolcode-cli.sh tools list              # List available tools
-sudo ./scripts/schoolcode-cli.sh tools versions          # Show tool versions
-sudo ./scripts/schoolcode-cli.sh permissions fix         # Fix file permissions
-sudo ./scripts/schoolcode-cli.sh permissions check       # Check permissions
-```
-
-#### Guest Account Management
-```bash
-sudo ./scripts/schoolcode-cli.sh guest setup             # Setup guest environment
-sudo ./scripts/schoolcode-cli.sh guest test              # Test guest environment
-sudo ./scripts/schoolcode-cli.sh guest cleanup           # Cleanup guest tools
-```
-
-#### Log Management (via CLI)
-```bash
-sudo ./scripts/schoolcode-cli.sh logs all 50             # All logs
-sudo ./scripts/schoolcode-cli.sh logs error 20           # Error logs
-sudo ./scripts/schoolcode-cli.sh logs guest 30           # Guest logs
-sudo ./scripts/schoolcode-cli.sh logs clear              # Clear all logs
-sudo ./scripts/schoolcode-cli.sh logs tail               # Live tail logs
-```
-
-## Requirements
-
-- macOS 10.14+ (Mojave or newer)
-- Administrator (sudo) privileges
-- ~2GB free disk space (for installation)
-- Internet connection (for downloading tools)
-
-## Installation Components
-
-### Core Developer Tools
-1. **System Compatibility Check** - Validates system requirements and fixes issues
-2. **Xcode Command Line Tools** - Required for development (installed via softwareupdate if needed)
-3. **Homebrew** - Non-interactive installation via git clone (avoids password prompts)
-4. **Python** - Official Python from python.org (with Homebrew fallback)
-5. **Git** - System or Homebrew version
-6. **pip** - Python package manager
-
-### Security Isolation
-- **Brew Wrapper** - Blocks system-wide package modifications for Guest accounts
-- **Pip Wrapper** - Forces user-only package installations
-- **Sudo Wrapper** - Prevents sudo usage for Guest users
-- **Shell Configuration** - Automatic environment setup for Guest accounts
-- **Temporary Workspace** - All Guest modifications are isolated and removable
+- **Xcode Command Line Tools** - Required development tools
+- **Homebrew** - Package manager (non-interactive installation)
+- **Python** - Official Python from python.org
+- **Git** - Version control
+- **pip** - Python package manager
+- **Security Wrappers** - Prevents Guest users from modifying system packages
 
 ## Security Model
 
-SchoolCode implements strict Guest account isolation to ensure students can't modify system-wide packages or access admin functions.
+Guest accounts are fully isolated:
+- Cannot use `sudo` or install system-wide packages
+- pip restricted to user-only installations (`--user` flag)
+- Homebrew limited to read-only commands
+- All modifications cleaned on logout
 
-### Guest Account Protection
-- **No System Modifications** - Security wrappers prevent Guest users from running `sudo` or installing system-wide packages
-- **User-Only Packages** - pip installations restricted to user directory (`--user` flag)
-- **Temporary Environment** - All Guest account modifications are cleaned on logout
-- **Read-Only Tools** - Homebrew limited to read-only commands (list, search, info)
+## Advanced Usage
 
-### System Integrity
-- **No System File Changes** - Installation only creates tools in `/opt/schoolcode`
-- **Reversible Setup** - Complete uninstall removes all traces
-- **Admin Control** - Only administrators (via sudo) can install/uninstall
+For granular control, use the CLI tool:
 
-## Common Workflows
-
-### Fresh Installation
 ```bash
-sudo ./schoolcode.sh                           # Full automatic setup
-sudo ./schoolcode.sh --status                  # Verify installation
-```
+# System management
+sudo ./scripts/schoolcode-cli.sh status [detailed]
+sudo ./scripts/schoolcode-cli.sh health [detailed]
+sudo ./scripts/schoolcode-cli.sh repair
 
-### System Health Checks
-```bash
-sudo ./schoolcode.sh --status                  # Quick status overview
-sudo ./scripts/schoolcode-cli.sh health        # Quick health check
-sudo ./scripts/schoolcode-cli.sh health detailed  # Detailed diagnostics
-```
+# Guest account
+sudo ./scripts/schoolcode-cli.sh guest setup
+sudo ./scripts/schoolcode-cli.sh guest test
 
-### Repair System Issues
-```bash
-sudo ./scripts/schoolcode-cli.sh repair        # Auto-fix common issues
-sudo ./scripts/schoolcode-cli.sh repair --verbose  # See what's being fixed
-```
-
-### Troubleshooting
-```bash
-./schoolcode.sh --logs errors                  # Show error logs
-./schoolcode.sh --logs install                 # Show latest install log
-sudo ./scripts/schoolcode-cli.sh logs tail     # Live tail of logs
+# Configuration
+sudo ./scripts/schoolcode-cli.sh config show
+sudo ./scripts/schoolcode-cli.sh tools list
 ```
 
 ## Troubleshooting
 
-### Installation Issues
+**Installation problems:**
 ```bash
-# Check system health first
-sudo ./schoolcode.sh --status
-
-# View detailed error logs
-./schoolcode.sh --logs errors 100
-./schoolcode.sh --logs install
-
-# Attempt automatic repair
-sudo ./scripts/schoolcode-cli.sh repair
-
-# Check system compatibility
-sudo ./scripts/schoolcode-cli.sh compatibility
+sudo ./schoolcode.sh --status           # Check system health
+./schoolcode.sh --logs errors           # View error logs
+sudo ./scripts/schoolcode-cli.sh repair # Auto-fix issues
 ```
 
-### Guest Account Problems
+**Guest account issues:**
 ```bash
-# Test guest environment
 sudo ./scripts/schoolcode-cli.sh guest test
-
-# Reconfigure guest account
 sudo ./scripts/schoolcode-cli.sh guest setup
-
-# Clean up and reset
-sudo ./scripts/schoolcode-cli.sh guest cleanup
-```
-
-### Permission or System Issues
-```bash
-# Check and fix permissions
-sudo ./scripts/schoolcode-cli.sh permissions check
-sudo ./scripts/schoolcode-cli.sh permissions fix
-
-# Run system repair
-sudo ./scripts/schoolcode-cli.sh repair
-
-# Check detailed logs for issues
-./schoolcode.sh --logs errors
-sudo ./scripts/schoolcode-cli.sh logs tail
 ```
 
 ## Project Structure
 
 ```
 SchoolCode/
-├── schoolcode.sh                    # Main entry point (primary interface)
+├── schoolcode.sh                    # Main entry point
 ├── scripts/
-│   ├── schoolcode-cli.sh            # Advanced CLI management tool
-│   ├── install.sh                   # Core installation logic
-│   ├── uninstall.sh                 # Uninstallation script
-│   ├── guest_setup_auto.sh          # Guest account setup automation
-│   ├── utils/                       # Utility functions and helpers
-│   │   ├── logging.sh               # Centralized logging system
-│   │   ├── config.sh                # Configuration management
-│   │   ├── monitoring.sh            # System health monitoring
-│   │   ├── homebrew_repair.sh       # Homebrew-specific repairs
-│   │   ├── system_repair.sh         # General system repairs
-│   │   ├── old_mac_compatibility.sh # macOS compatibility checking
-│   │   ├── install_official_python.sh # Python installation
-│   │   └── python_utils.sh          # Python management utilities
-│   └── setup/                       # Guest account configuration
-│       ├── guest_login_setup.sh     # Login environment setup
-│       ├── guest_tools_setup.sh     # Tool wrapper setup
-│       └── setup_guest_shell_init.sh # Shell initialization
+│   ├── schoolcode-cli.sh            # Advanced CLI tool
+│   ├── install.sh                   # Installation logic
+│   ├── uninstall.sh                 # Removal script
+│   ├── utils/                       # Utility functions
+│   └── setup/                       # Guest configuration
 ├── tests/                           # Test suite
-│   └── test_installation.sh         # Installation tests
-├── README.md                        # This file
-├── LICENSE                          # Apache 2.0 License
-└── agents.md                        # AI agent guidelines
+└── README.md                        # This file
 ```
-
-## Version 3.0 Improvements
-
-- **Enhanced Git Handling** - Separate Xcode CLT installation from Homebrew setup
-- **Non-Interactive Homebrew** - Installation via git clone to avoid password prompts
-- **Official Python Support** - Prefer python.org installer with Homebrew fallback
-- **Improved Error Handling** - Better error detection and recovery
-- **Enhanced Logging** - Comprehensive logging with multiple output formats
-- **Security Wrappers** - Full Guest account isolation with brew/pip/sudo restrictions
 
 ## License
 

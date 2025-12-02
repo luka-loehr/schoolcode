@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Source utilities
 SCRIPT_DIR="$(dirname "$0")"
-source "${SCRIPT_DIR}/scripts/utils/logging.sh"
+source "${SCRIPT_DIR}/logging.sh"
 source "${SCRIPT_DIR}/old_mac_compatibility.sh"
 
 # Global variables

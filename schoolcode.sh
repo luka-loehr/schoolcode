@@ -10,7 +10,6 @@ set -euo pipefail
 SCRIPT_VERSION="3.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
-STATUS_FILE="$PROJECT_ROOT/.schoolcode-status"
 
 # Source utility libraries
 source "$SCRIPT_DIR/scripts/utils/logging.sh"
@@ -81,66 +80,8 @@ get_installer_ip() {
 update_status() {
     local status="$1"
     local message="${2:-}"
-    
-    # Check if marker file exists (created by installer)
-    if [[ ! -f "$STATUS_FILE" ]]; then
-        echo "Warning: Marker file not found at $STATUS_FILE (should be created by installer)" >&2
-        return 1
-    fi
-    
-    # Validate status value
-    case "$status" in
-        "ready"|"error")
-            ;;
-        *)
-            echo "Error: Invalid status value: $status" >&2
-            return 1
-            ;;
-    esac
-    
-    # Get current values
-    local schoolcode_version=$(get_schoolcode_version)
-    local install_path="$PROJECT_ROOT"
-    local installer_ip=$(get_installer_ip)
-    local timestamp=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)
-    
-    # Create status data structure
-    local status_data
-    if [[ "$status" == "ready" ]]; then
-        status_data=$(cat << EOF
-{
-  "status": "$status",
-  "cloned": true,
-  "installed": true,
-  "timestamp": "$timestamp",
-  "install_path": "$install_path",
-  "schoolcode_version": "$schoolcode_version",
-  "message": "$message"
-}
-EOF
-)
-    else
-        status_data=$(cat << EOF
-{
-  "status": "$status",
-  "cloned": true,
-  "timestamp": "$timestamp",
-  "install_path": "$install_path",
-  "schoolcode_version": "$schoolcode_version",
-  "message": "$message"
-}
-EOF
-)
-    fi
-    
-    # Write status file with error handling
-    if echo "$status_data" > "$STATUS_FILE" 2>/dev/null; then
-        echo "Status updated: $status"
-        return 0
-    else
-        echo "Error: Failed to update status file: $STATUS_FILE" >&2
-        return 1
-    fi
+    # Status updates are logged but no longer write to marker file
+    log_info "Status: $status - $message"
 }
 
 # Check if running as root (skip for help)

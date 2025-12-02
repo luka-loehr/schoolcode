@@ -42,9 +42,9 @@ version_compare() {
     local v1_formatted=$(echo "$version1" | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
     local v2_formatted=$(echo "$version2" | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
     
-    if [[ "$v1_formatted" -lt "$v2_formatted" ]]; then
+    if [[ "10#$v1_formatted" -lt "10#$v2_formatted" ]]; then
         echo "-1"
-    elif [[ "$v1_formatted" -gt "$v2_formatted" ]]; then
+    elif [[ "10#$v1_formatted" -gt "10#$v2_formatted" ]]; then
         echo "1"
     else
         echo "0"

@@ -149,23 +149,42 @@ check_schoolcode_tools() {
         ((tools_total++))
         
         local tool_path="$schoolcode_tools_dir/bin/$tool"
+        local tool_found=false
+        
+        # First, check if tool works from schoolcode bin
         if [[ -x "$tool_path" ]]; then
-            # Test if tool actually works
             local test_cmd=$(get_tool_info "$tool" "test_cmd")
             if [[ -n "$test_cmd" ]]; then
                 if eval "$tool_path $test_cmd" &>/dev/null; then
-                    ((tools_working++))
-                    log_debug "Tool working: $tool"
-                else
-                    log_warn "Tool not functioning: $tool"
-                    missing_tools="$missing_tools $tool"
+                    tool_found=true
+                    log_debug "Tool working (schoolcode): $tool"
                 fi
             else
-                ((tools_working++))
-                log_debug "Tool present: $tool"
+                tool_found=true
+                log_debug "Tool present (schoolcode): $tool"
             fi
+        fi
+        
+        # If not found in schoolcode bin, check system-wide
+        if [[ "$tool_found" == "false" ]]; then
+            if command -v "$tool" &>/dev/null; then
+                local test_cmd=$(get_tool_info "$tool" "test_cmd")
+                if [[ -n "$test_cmd" ]]; then
+                    if eval "$tool $test_cmd" &>/dev/null; then
+                        tool_found=true
+                        log_debug "Tool working (system): $tool"
+                    fi
+                else
+                    tool_found=true
+                    log_debug "Tool present (system): $tool"
+                fi
+            fi
+        fi
+        
+        if [[ "$tool_found" == "true" ]]; then
+            ((tools_working++))
         else
-            log_warn "Tool missing or not executable: $tool"
+            log_warn "Tool not available: $tool"
             missing_tools="$missing_tools $tool"
         fi
     done

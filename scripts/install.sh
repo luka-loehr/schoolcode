@@ -823,27 +823,100 @@ repair_homebrew() {
     return 0
 }
 
-# Check and install Git
-check_git() {
-    log INFO "Checking Git installation..."
+# Ensure git is available (required before Homebrew installation)
+# This checks for any working git - system git at /usr/bin/git is fine
+ensure_git_available() {
+    log INFO "Ensuring git is available..."
     
-    # Locate git
+    # Check common locations for git
     local git_bin=""
-    for path in /opt/homebrew/bin/git /usr/local/bin/git /usr/bin/git; do
-        [[ -x "$path" ]] && git_bin="$path" && break
+    for path in /usr/bin/git /opt/homebrew/bin/git /usr/local/bin/git; do
+        if [[ -x "$path" ]]; then
+            # Verify it actually works (not just a shim that triggers CLT install)
+            if "$path" --version &>/dev/null 2>&1; then
+                git_bin="$path"
+                break
+            fi
+        fi
     done
-    [[ -z "$git_bin" ]] && git_bin="$(command -v git 2>/dev/null || true)"
     
     if [[ -z "$git_bin" ]]; then
-        log WARN "Git not found, installing via Homebrew..."
-        install_git || {
-            log ERROR "Failed to install Git"
+        log INFO "Git not found, installing Xcode Command Line Tools..."
+        
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log DEBUG "Would install Xcode Command Line Tools"
+            return 0
+        fi
+        
+        # Install Xcode CLT non-interactively
+        # Create the marker file that triggers softwareupdate
+        touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+        
+        # Find the CLT package
+        local clt_pkg
+        clt_pkg=$(softwareupdate -l 2>/dev/null | grep "Label:.*Command Line Tools" | head -1 | sed 's/.*Label: //' | xargs)
+        
+        if [[ -n "$clt_pkg" ]]; then
+            log INFO "Installing: $clt_pkg"
+            show_progress "Installing Command Line Tools (this may take a few minutes)"
+            softwareupdate -i "$clt_pkg" --verbose 2>/dev/null || {
+                rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+                log ERROR "Failed to install Command Line Tools"
+                return 1
+            }
+            complete_progress
+        else
+            rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+            log ERROR "Could not find Command Line Tools package"
+            log ERROR "Please install manually: xcode-select --install"
             return 1
-        }
-    else
-        GIT_VERSION=$($git_bin --version 2>/dev/null | awk '{print $3}')
-        log SUCCESS "Git ${GIT_VERSION:-unknown} found"
+        fi
+        
+        rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+        
+        # Verify git is now available
+        if [[ -x "/usr/bin/git" ]] && /usr/bin/git --version &>/dev/null; then
+            git_bin="/usr/bin/git"
+        else
+            log ERROR "Git still not available after CLT installation"
+            return 1
+        fi
     fi
+    
+    GIT_VERSION=$($git_bin --version 2>/dev/null | awk '{print $3}')
+    log SUCCESS "Git ${GIT_VERSION:-unknown} available at $git_bin"
+    return 0
+}
+
+# Check and optionally upgrade Git via Homebrew
+check_git() {
+    log INFO "Checking for Homebrew Git..."
+    
+    # Check if Homebrew git is already installed
+    local brew_git=""
+    for path in /opt/homebrew/bin/git /usr/local/bin/git; do
+        if [[ -x "$path" ]] && [[ "$path" != "/usr/bin/git" ]]; then
+            if "$path" --version &>/dev/null 2>&1; then
+                brew_git="$path"
+                break
+            fi
+        fi
+    done
+    
+    if [[ -n "$brew_git" ]]; then
+        GIT_VERSION=$($brew_git --version 2>/dev/null | awk '{print $3}')
+        log SUCCESS "Homebrew Git ${GIT_VERSION:-unknown} found"
+        return 0
+    fi
+    
+    # System git exists (from ensure_git_available), optionally install Homebrew git
+    local system_git_version=$(/usr/bin/git --version 2>/dev/null | awk '{print $3}')
+    log INFO "System Git $system_git_version found, installing newer version via Homebrew..."
+    
+    install_git || {
+        # Not fatal - system git works fine
+        log WARN "Could not install Homebrew Git, continuing with system Git $system_git_version"
+    }
     
     return 0
 }
@@ -1539,13 +1612,19 @@ main() {
     # Create backup if needed
     create_backup
     
-    # Check and install Homebrew (must be first - Git depends on it)
+    # Ensure git is available first (required for Homebrew installation)
+    ensure_git_available || {
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Git is required but could not be installed" >> "$LOG_FILE" 2>/dev/null || true
+        exit 1
+    }
+    
+    # Check and install Homebrew (uses git clone)
     check_homebrew || {
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Homebrew setup failed" >> "$LOG_FILE" 2>/dev/null || true
         exit 1
     }
     
-    # Check and install Git (via Homebrew, not CLT)
+    # Optionally upgrade to newer Git via Homebrew
     check_git || {
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Git setup failed" >> "$LOG_FILE" 2>/dev/null || true
         exit 1

@@ -102,6 +102,11 @@ write_log() {
     fi
 }
 
+# Check if quiet mode is enabled
+is_quiet() {
+    [[ "${SCHOOLCODE_QUIET:-false}" == "true" ]]
+}
+
 # Specific logging functions
 log_debug() {
     local color=$(get_level_color "DEBUG")
@@ -110,24 +115,29 @@ log_debug() {
 
 log_info() {
     local color=$(get_level_color "INFO")
-    write_log "INFO" "$1" "$LOG_FILE" "$color"
+    local show_console="true"
+    is_quiet && show_console="false"
+    write_log "INFO" "$1" "$LOG_FILE" "$color" "$show_console"
 }
 
 log_warn() {
     local color=$(get_level_color "WARN")
-    write_log "WARN" "$1" "$LOG_FILE" "$color"
+    local show_console="true"
+    is_quiet && show_console="false"
+    write_log "WARN" "$1" "$LOG_FILE" "$color" "$show_console"
 }
 
 log_error() {
     local color=$(get_level_color "ERROR")
-    write_log "ERROR" "$1" "$ERROR_LOG" "$color"
+    # Errors always show on console even in quiet mode
+    write_log "ERROR" "$1" "$ERROR_LOG" "$color" "true"
     # Also write to main log
     write_log "ERROR" "$1" "$LOG_FILE" "" "false"
 }
 
 log_fatal() {
     local color=$(get_level_color "FATAL")
-    write_log "FATAL" "$1" "$ERROR_LOG" "$color"
+    write_log "FATAL" "$1" "$ERROR_LOG" "$color" "true"
     write_log "FATAL" "$1" "$LOG_FILE" "" "false"
 }
 
@@ -211,6 +221,28 @@ clear_logs() {
     > "$SETUP_LOG" 2>/dev/null || true
 }
 
+# Spinner stubs (not used - schoolcode.sh uses simpler progress)
+start_spinner() { :; }
+stop_spinner() { :; }
+show_step() { :; }
+set_total_steps() { :; }
+
+# Silent logging - logs to file only, no console output
+log_silent() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(get_timestamp)
+    local script_name=$(get_script_name)
+    local user=$(whoami)
+    local log_entry="[$timestamp] [$level] [$script_name] [$user] $message"
+    
+    if [[ -w "$LOG_FILE" ]] 2>/dev/null; then
+        echo "$log_entry" >> "$LOG_FILE"
+    fi
+}
+
 # Export functions for use in other scripts
 export -f log_debug log_info log_warn log_error log_fatal log_guest
-export -f log_command log_function show_logs clear_logs rotate_logs 
+export -f log_command log_function show_logs clear_logs rotate_logs
+export -f log_silent is_quiet
+export -f start_spinner stop_spinner show_step set_total_steps 

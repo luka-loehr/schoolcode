@@ -592,8 +592,15 @@ check_homebrew() {
     [[ -z "$brew_bin" ]] && brew_bin="$(command -v brew 2>/dev/null || true)"
     
     if [[ -z "$brew_bin" ]]; then
-        log WARN "Homebrew not found; continuing (only needed for fallback installs)"
-        return 0
+        log WARN "Homebrew not found, installing..."
+        install_homebrew || {
+            log ERROR "Failed to install Homebrew"
+            return 1
+        }
+        # Re-locate brew after installation
+        for path in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+            [[ -x "$path" ]] && brew_bin="$path" && break
+        done
     fi
     
     # Basic version check
@@ -627,15 +634,34 @@ install_homebrew() {
         return 0
     fi
     
-    # Download and run Homebrew installer
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
+    # Homebrew installer needs to run as non-root user
+    # When running under sudo, we need to run as the original user
+    local install_user="${ORIGINAL_USER:-${SUDO_USER:-$(whoami)}}"
+    
+    if [[ "$install_user" == "root" ]]; then
+        log ERROR "Cannot install Homebrew as root. Please run as a regular user with sudo."
+        return 1
+    fi
+    
+    show_progress "Downloading and installing Homebrew"
+    
+    # Run Homebrew installer non-interactively as the original user
+    # NONINTERACTIVE=1 skips all prompts
+    if sudo -u "$install_user" /bin/bash -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' 2>/dev/null; then
+        complete_progress
+    else
+        printf "\r\033[K"  # Clear progress line
         log ERROR "Failed to install Homebrew"
         return 1
-    }
+    fi
     
     # Add Homebrew to PATH for Apple Silicon Macs
     if [[ -f "/opt/homebrew/bin/brew" ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
+        export PATH="/opt/homebrew/bin:$PATH"
+    elif [[ -f "/usr/local/bin/brew" ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+        export PATH="/usr/local/bin:$PATH"
     fi
     
     log SUCCESS "Homebrew installed successfully"

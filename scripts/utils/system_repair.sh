@@ -153,9 +153,30 @@ repair_xcode_clt() {
     install_xcode_clt
 }
 
-# Update system certificates
+# Update system certificates (only on old macOS or if certs are missing/outdated)
 update_system_certificates() {
-    log_silent "INFO" "Updating system certificates..."
+    log_silent "INFO" "Checking system certificates..."
+    
+    # Only update certificates on older macOS versions (pre-Catalina) or if SSL fails
+    local macos_version=$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)
+    local needs_update=false
+    
+    # Check if SSL/TLS works properly
+    if ! curl -fsS --connect-timeout 5 "https://github.com" -o /dev/null 2>/dev/null; then
+        needs_update=true
+    fi
+    
+    # On older macOS (< 10.15 Catalina), certificates may need updating
+    if [[ "$macos_version" =~ ^10$ ]] || [[ "$macos_version" -lt 10 ]]; then
+        local minor_version=$(sw_vers -productVersion 2>/dev/null | cut -d. -f2)
+        if [[ "$minor_version" -lt 15 ]]; then
+            needs_update=true
+        fi
+    fi
+    
+    if [[ "$needs_update" != "true" ]]; then
+        return 0
+    fi
     
     local cert_locations=(
         "/usr/local/etc/openssl/cert.pem"
@@ -165,40 +186,43 @@ update_system_certificates() {
     
     local updated=0
     
-    for cert_path in "${cert_locations[@]}"; do
-        if [[ -f "$cert_path" ]] || [[ -L "$cert_path" ]]; then
-            # Backup existing certificates
-            if [[ -f "$cert_path" ]] && [[ ! -L "$cert_path" ]]; then
-                cp "$cert_path" "${cert_path}.backup.$(date +%Y%m%d)" 2>/dev/null || true
-            fi
-            
-            # Download new certificates
-            if curl -fsSL "$CERT_UPDATE_URL" -o "/tmp/cacert.pem" 2>/dev/null; then
-                if [[ -w "$cert_path" ]] || [[ $EUID -eq 0 ]]; then
-                    cp "/tmp/cacert.pem" "$cert_path" 2>/dev/null && ((updated++))
-                else
-                    sudo cp "/tmp/cacert.pem" "$cert_path" 2>/dev/null && ((updated++))
+    # Download new certificates once
+    if curl -fsSL "$CERT_UPDATE_URL" -o "/tmp/cacert.pem" 2>/dev/null; then
+        for cert_path in "${cert_locations[@]}"; do
+            if [[ -f "$cert_path" ]] || [[ -L "$cert_path" ]]; then
+                # Only update if different
+                if ! cmp -s "/tmp/cacert.pem" "$cert_path" 2>/dev/null; then
+                    # Backup existing certificates
+                    if [[ -f "$cert_path" ]] && [[ ! -L "$cert_path" ]]; then
+                        cp "$cert_path" "${cert_path}.backup.$(date +%Y%m%d)" 2>/dev/null || true
+                    fi
+                    
+                    if [[ -w "$cert_path" ]] || [[ $EUID -eq 0 ]]; then
+                        cp "/tmp/cacert.pem" "$cert_path" 2>/dev/null && ((updated++))
+                    else
+                        sudo cp "/tmp/cacert.pem" "$cert_path" 2>/dev/null && ((updated++))
+                    fi
                 fi
             fi
-        fi
-    done
+        done
+    fi
     
     rm -f "/tmp/cacert.pem"
     
-    # Handle expired DST Root CA X3
+    # Handle expired DST Root CA X3 (only an issue on older systems)
     if security find-certificate -a -c "DST Root CA X3" /System/Library/Keychains/SystemRootCertificates.keychain &>/dev/null 2>&1; then
         if [[ $EUID -eq 0 ]]; then
-            security delete-certificate -c "DST Root CA X3" /System/Library/Keychains/SystemRootCertificates.keychain 2>/dev/null || true
+            security delete-certificate -c "DST Root CA X3" /System/Library/Keychains/SystemRootCertificates.keychain 2>/dev/null && ((updated++))
         else
-            sudo security delete-certificate -c "DST Root CA X3" /System/Library/Keychains/SystemRootCertificates.keychain 2>/dev/null || true
+            sudo security delete-certificate -c "DST Root CA X3" /System/Library/Keychains/SystemRootCertificates.keychain 2>/dev/null && ((updated++))
         fi
-        ((updated++))
     fi
     
-    # Update Homebrew's ca-certificates if installed
+    # Update Homebrew's ca-certificates if installed and outdated
     if command -v brew &>/dev/null && brew list ca-certificates &>/dev/null 2>&1; then
-        brew upgrade ca-certificates 2>/dev/null || brew install ca-certificates 2>/dev/null || true
-        ((updated++))
+        if brew outdated ca-certificates 2>/dev/null | grep -q ca-certificates; then
+            brew upgrade ca-certificates 2>/dev/null && ((updated++))
+        fi
     fi
     
     if [[ $updated -gt 0 ]]; then
@@ -218,31 +242,42 @@ fix_git_configuration() {
     fi
     
     local git_version=$(git --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1)
-    local made_changes=false
+    local changes_made=0
+    
+    # Helper to set config only if not already set to the expected value
+    set_git_config_if_different() {
+        local key="$1"
+        local value="$2"
+        local current=$(git config --global --get "$key" 2>/dev/null || echo "")
+        if [[ "$current" != "$value" ]]; then
+            git config --global "$key" "$value" 2>/dev/null && ((changes_made++))
+        fi
+    }
     
     # Force HTTPS instead of git:// protocol
-    git config --global url."https://github.com/".insteadOf git://github.com/ 2>/dev/null || true
-    git config --global url."https://".insteadOf git:// 2>/dev/null || true
+    set_git_config_if_different "url.https://github.com/.insteadOf" "git://github.com/"
+    set_git_config_if_different "url.https://.insteadOf" "git://"
     
     # For very old Git versions, set compatibility options
     if [[ $(version_compare "$git_version" "2.0") -eq -1 ]]; then
-        git config --global http.sslVerify false 2>/dev/null || true
-        git config --global http.postBuffer 524288000 2>/dev/null || true
-        git config --global core.compression 0 2>/dev/null || true
-        made_changes=true
+        set_git_config_if_different "http.sslVerify" "false"
+        set_git_config_if_different "http.postBuffer" "524288000"
+        set_git_config_if_different "core.compression" "0"
     fi
     
     # Set reasonable defaults
-    git config --global init.defaultBranch main 2>/dev/null || true
-    git config --global core.autocrlf input 2>/dev/null || true
+    set_git_config_if_different "init.defaultBranch" "main"
+    set_git_config_if_different "core.autocrlf" "input"
     
     # Fix credentials for old systems
     if [[ $(version_compare "$git_version" "2.0") -ge 0 ]]; then
-        git config --global credential.helper osxkeychain 2>/dev/null || true
+        set_git_config_if_different "credential.helper" "osxkeychain"
     fi
     
-    ((REPAIRS_PERFORMED++))
-    REPAIR_MESSAGES+=("Configured Git for compatibility")
+    if [[ $changes_made -gt 0 ]]; then
+        ((REPAIRS_PERFORMED++))
+        REPAIR_MESSAGES+=("Configured Git ($changes_made settings)")
+    fi
     
     return 0
 }

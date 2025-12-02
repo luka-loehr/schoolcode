@@ -21,8 +21,8 @@ SchoolCode automates setup of a complete development environment for students on
 
 ```bash
 # Clone and install
-git clone https://github.com/luka-loehr/SchoolCode.git
-cd SchoolCode
+git clone https://github.com/luka-loehr/schoolcode.git
+cd schoolcode
 sudo ./schoolcode.sh
 ```
 

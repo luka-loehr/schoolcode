@@ -584,27 +584,36 @@ restore_from_backup() {
 check_homebrew() {
     log INFO "Checking Homebrew installation..."
     
-    # Locate brew even if not in PATH under sudo
+    # Locate brew - check actual filesystem paths, not symlinks
     local brew_bin=""
     for path in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-        [[ -x "$path" ]] && brew_bin="$path" && break
+        if [[ -x "$path" ]] && [[ ! -L "$path" || -e "$path" ]]; then
+            # Verify it's actually executable (not a broken symlink)
+            if "$path" --version &>/dev/null 2>&1; then
+                brew_bin="$path"
+                break
+            fi
+        fi
     done
-    [[ -z "$brew_bin" ]] && brew_bin="$(command -v brew 2>/dev/null || true)"
     
     if [[ -z "$brew_bin" ]]; then
-        log WARN "Homebrew not found, installing..."
-        install_homebrew || {
-            log ERROR "Failed to install Homebrew"
-            return 1
-        }
-        # Re-locate brew after installation
-        for path in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-            [[ -x "$path" ]] && brew_bin="$path" && break
-        done
+        log ERROR "Homebrew is not installed."
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "  Homebrew is required but not installed."
+        echo ""
+        echo "  Please install Homebrew first by running:"
+        echo ""
+        echo "    /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        echo ""
+        echo "  Then run this installer again."
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        return 1
     fi
     
-    # Basic version check
-    HOMEBREW_VERSION=$($brew_bin --version 2>/dev/null | head -1 | awk '{print $2}')
+    # Basic version check (disable auto-update to prevent hangs)
+    HOMEBREW_VERSION=$(HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" --version 2>/dev/null | head -1 | awk '{print $2}')
     log SUCCESS "Homebrew ${HOMEBREW_VERSION:-unknown} found"
     
     # Optional quick health check (verbose only) with timeout to avoid hangs
@@ -634,24 +643,36 @@ install_homebrew() {
         return 0
     fi
     
-    # Homebrew installer needs to run as non-root user
-    # When running under sudo, we need to run as the original user
-    local install_user="${ORIGINAL_USER:-${SUDO_USER:-$(whoami)}}"
+    # Get the original user who ran sudo
+    local install_user="${ORIGINAL_USER:-${SUDO_USER:-}}"
     
-    if [[ "$install_user" == "root" ]]; then
-        log ERROR "Cannot install Homebrew as root. Please run as a regular user with sudo."
+    if [[ -z "$install_user" ]] || [[ "$install_user" == "root" ]]; then
+        log ERROR "Cannot install Homebrew as root."
+        log ERROR "Please install Homebrew first: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
         return 1
     fi
     
-    show_progress "Downloading and installing Homebrew"
+    log INFO "Installing Homebrew as user: $install_user"
     
-    # Run Homebrew installer non-interactively as the original user
-    # NONINTERACTIVE=1 skips all prompts
-    if sudo -u "$install_user" /bin/bash -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' 2>/dev/null; then
-        complete_progress
+    # Create a temporary script that the user can run
+    local tmp_script="/tmp/homebrew_install_$$.sh"
+    cat > "$tmp_script" << 'BREWSCRIPT'
+#!/bin/bash
+export NONINTERACTIVE=1
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+BREWSCRIPT
+    chmod +x "$tmp_script"
+    chown "$install_user" "$tmp_script"
+    
+    # Run as the original user - they already have sudo cached from running our script
+    log INFO "Running Homebrew installer (this may take a few minutes)..."
+    if sudo -u "$install_user" "$tmp_script"; then
+        rm -f "$tmp_script"
+        log SUCCESS "Homebrew installed successfully"
     else
-        printf "\r\033[K"  # Clear progress line
+        rm -f "$tmp_script"
         log ERROR "Failed to install Homebrew"
+        log ERROR "Try installing manually: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
         return 1
     fi
     
@@ -664,7 +685,6 @@ install_homebrew() {
         export PATH="/usr/local/bin:$PATH"
     fi
     
-    log SUCCESS "Homebrew installed successfully"
     return 0
 }
 
@@ -685,6 +705,80 @@ repair_homebrew() {
     brew cleanup 2>/dev/null || true
     
     log SUCCESS "Homebrew repair completed"
+    return 0
+}
+
+# Check and install Git
+check_git() {
+    log INFO "Checking Git installation..."
+    
+    # Locate git
+    local git_bin=""
+    for path in /opt/homebrew/bin/git /usr/local/bin/git /usr/bin/git; do
+        [[ -x "$path" ]] && git_bin="$path" && break
+    done
+    [[ -z "$git_bin" ]] && git_bin="$(command -v git 2>/dev/null || true)"
+    
+    if [[ -z "$git_bin" ]]; then
+        log WARN "Git not found, installing via Homebrew..."
+        install_git || {
+            log ERROR "Failed to install Git"
+            return 1
+        }
+    else
+        GIT_VERSION=$($git_bin --version 2>/dev/null | awk '{print $3}')
+        log SUCCESS "Git ${GIT_VERSION:-unknown} found"
+    fi
+    
+    return 0
+}
+
+# Install Git via Homebrew
+install_git() {
+    log INFO "Installing Git via Homebrew..."
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log DEBUG "Would install Git"
+        return 0
+    fi
+    
+    # Find brew binary
+    local brew_bin=""
+    for path in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+        [[ -x "$path" ]] && brew_bin="$path" && break
+    done
+    
+    if [[ -z "$brew_bin" ]]; then
+        log ERROR "Homebrew not found, cannot install Git"
+        return 1
+    fi
+    
+    show_progress "Installing Git"
+    
+    # Install git via Homebrew (run as original user)
+    local install_user="${ORIGINAL_USER:-${SUDO_USER:-$(whoami)}}"
+    if [[ "$install_user" != "root" ]]; then
+        sudo -u "$install_user" HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" install git 2>/dev/null || {
+            printf "\r\033[K"
+            log ERROR "Failed to install Git via Homebrew"
+            return 1
+        }
+    else
+        HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" install git 2>/dev/null || {
+            printf "\r\033[K"
+            log ERROR "Failed to install Git via Homebrew"
+            return 1
+        }
+    fi
+    
+    complete_progress
+    
+    # Re-locate git after install
+    local new_git="$(HOMEBREW_NO_AUTO_UPDATE=1 $brew_bin --prefix)/bin/git"
+    if [[ -x "$new_git" ]]; then
+        GIT_VERSION=$($new_git --version 2>/dev/null | awk '{print $3}')
+    fi
+    log SUCCESS "Git ${GIT_VERSION:-} installed successfully"
     return 0
 }
 
@@ -1330,9 +1424,15 @@ main() {
     # Create backup if needed
     create_backup
     
-    # Check and install Homebrew
+    # Check and install Homebrew (must be first - Git depends on it)
     check_homebrew || {
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Homebrew setup failed" >> "$LOG_FILE" 2>/dev/null || true
+        exit 1
+    }
+    
+    # Check and install Git (via Homebrew, not CLT)
+    check_git || {
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Git setup failed" >> "$LOG_FILE" 2>/dev/null || true
         exit 1
     }
     

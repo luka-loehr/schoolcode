@@ -60,7 +60,9 @@ get_timestamp() {
 
 # Function to get script name
 get_script_name() {
-    basename "${BASH_SOURCE[2]}" .sh 2>/dev/null || echo "unknown"
+    # Use BASH_SOURCE[2] if available, fallback to [1] or [0]
+    local src="${BASH_SOURCE[2]:-${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-unknown}}}"
+    basename "$src" .sh 2>/dev/null || echo "unknown"
 }
 
 # Function to get color for level

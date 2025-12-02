@@ -28,10 +28,11 @@ GUEST_TOOLS_DIR="/Users/Guest/tools"
 
 # Always set up PATH to use SchoolCode tools directly (no copying)
 clear
-echo "╔════════════════════════════════════════╗"
-echo "║     🚀 SchoolCode Guest Session 🚀       ║"
-echo "║        © 2025 Luka Löhr                ║"
-echo "╚════════════════════════════════════════╝"
+CURRENT_YEAR=$(date +%Y)
+echo "╔══════════════════════════════════════╗"
+echo "║       SchoolCode Guest Session       ║"
+echo "║           © $CURRENT_YEAR Luka Löhr           ║"
+echo "╚══════════════════════════════════════╝"
 echo ""
 
 # Configure PATH for Guest: SchoolCode bin, official Python, user pip bin
@@ -45,10 +46,3 @@ fi
 # Configure pip to use user installs by default
 export PIP_CONFIG_FILE="/opt/schoolcode/config/pip.conf"
 
-# One-time welcome per session
-if [[ "$SCHOOLCODE_WELCOME_SHOWN" != "true" ]]; then
-    export SCHOOLCODE_WELCOME_SHOWN="true"
-    echo "✨ SchoolCode tools are ready!"
-    echo "Available: brew, python3, python, git, pip3, pip"
-    echo ""
-fi

@@ -756,6 +756,12 @@ install_homebrew() {
     # Disable analytics
     sudo -u "$target_user" bash -lc "$brew_prefix/bin/brew analytics off" 2>/dev/null || true
     
+    # Unshallow the git repository to fix "(shallow or no git repository)" warning
+    # This converts the shallow clone to a full clone with proper git history
+    if [[ -d "$brew_prefix/.git" ]]; then
+        sudo -u "$target_user" git -C "$brew_prefix" fetch --unshallow 2>/dev/null || true
+    fi
+    
     # Force update to set up taps structure
     sudo -u "$target_user" bash -lc "$brew_prefix/bin/brew update --force --quiet" 2>/dev/null || {
         log WARN "Initial brew update had warnings (this is often okay)"

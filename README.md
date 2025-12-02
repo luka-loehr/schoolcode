@@ -6,7 +6,7 @@ Copyright (c) 2025 Luka Löhr
 
 Automated developer tool deployment for macOS Guest accounts.
 
-[![Version](https://img.shields.io/badge/version-3.0.0-blue)](https://github.com/luka-loehr/SchoolCode)
+[![Version](https://img.shields.io/github/v/release/luka-loehr/SchoolCode?label=version&color=blue&logo=github)](https://github.com/luka-loehr/SchoolCode/releases)
 [![macOS](https://img.shields.io/badge/macOS-10.14%2B-success)](https://support.apple.com/macos)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 

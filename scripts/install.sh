@@ -586,7 +586,7 @@ check_homebrew() {
     
     # Locate brew - check actual filesystem paths, not symlinks
     local brew_bin=""
-    for path in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    for path in /opt/homebrew/bin/brew /usr/local/bin/brew /usr/local/Homebrew/bin/brew; do
         if [[ -x "$path" ]] && [[ ! -L "$path" || -e "$path" ]]; then
             # Verify it's actually executable (not a broken symlink)
             if "$path" --version &>/dev/null 2>&1; then
@@ -597,19 +597,32 @@ check_homebrew() {
     done
     
     if [[ -z "$brew_bin" ]]; then
-        log ERROR "Homebrew is not installed."
-        echo ""
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "  Homebrew is required but not installed."
-        echo ""
-        echo "  Please install Homebrew first by running:"
-        echo ""
-        echo "    /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-        echo ""
-        echo "  Then run this installer again."
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo ""
-        return 1
+        log INFO "Homebrew not found, installing..."
+        
+        # Auto-install Homebrew non-interactively
+        if ! install_homebrew; then
+            log ERROR "Failed to install Homebrew"
+            return 1
+        fi
+        
+        # In dry run mode, skip the verification since nothing was actually installed
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log DEBUG "Dry run: skipping brew verification"
+            return 0
+        fi
+        
+        # Re-locate brew after installation
+        for path in /opt/homebrew/bin/brew /usr/local/bin/brew /usr/local/Homebrew/bin/brew; do
+            if [[ -x "$path" ]]; then
+                brew_bin="$path"
+                break
+            fi
+        done
+        
+        if [[ -z "$brew_bin" ]]; then
+            log ERROR "Homebrew installation completed but brew command not found"
+            return 1
+        fi
     fi
     
     # Basic version check (disable auto-update to prevent hangs)
@@ -634,58 +647,160 @@ check_homebrew() {
     return 0
 }
 
-# Install Homebrew
+# Install Homebrew non-interactively via git clone (no password prompts)
+# This bypasses the official install.sh which calls sudo internally
 install_homebrew() {
-    log INFO "Installing Homebrew..."
+    log INFO "Installing Homebrew (non-interactive via git)..."
     
     if [[ "$DRY_RUN" == "true" ]]; then
-        log DEBUG "Would install Homebrew"
+        log DEBUG "Would install Homebrew via git clone"
         return 0
     fi
     
-    # Get the original user who ran sudo
-    local install_user="${ORIGINAL_USER:-${SUDO_USER:-}}"
+    # Get the target user (who will own Homebrew)
+    local target_user="${ORIGINAL_USER:-${SUDO_USER:-}}"
+    if [[ -z "$target_user" ]] || [[ "$target_user" == "root" ]]; then
+        # Try to get console user
+        target_user=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+    fi
     
-    if [[ -z "$install_user" ]] || [[ "$install_user" == "root" ]]; then
-        log ERROR "Cannot install Homebrew as root."
-        log ERROR "Please install Homebrew first: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+    if [[ -z "$target_user" ]] || [[ "$target_user" == "root" ]]; then
+        log ERROR "Cannot determine target user for Homebrew installation"
         return 1
     fi
     
-    log INFO "Installing Homebrew as user: $install_user"
+    local target_home
+    target_home=$(dscl . -read /Users/"$target_user" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+    if [[ -z "$target_home" ]]; then
+        target_home="/Users/$target_user"
+    fi
     
-    # Create a temporary script that the user can run
-    local tmp_script="/tmp/homebrew_install_$$.sh"
-    cat > "$tmp_script" << 'BREWSCRIPT'
-#!/bin/bash
-export NONINTERACTIVE=1
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-BREWSCRIPT
-    chmod +x "$tmp_script"
-    chown "$install_user" "$tmp_script"
-    
-    # Run as the original user - they already have sudo cached from running our script
-    log INFO "Running Homebrew installer (this may take a few minutes)..."
-    if sudo -u "$install_user" "$tmp_script"; then
-        rm -f "$tmp_script"
-        log SUCCESS "Homebrew installed successfully"
+    # Determine correct prefix based on architecture
+    local brew_prefix
+    local arch=$(uname -m)
+    if [[ "$arch" == "arm64" ]]; then
+        brew_prefix="/opt/homebrew"
     else
-        rm -f "$tmp_script"
-        log ERROR "Failed to install Homebrew"
-        log ERROR "Try installing manually: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        brew_prefix="/usr/local/Homebrew"
+    fi
+    
+    log INFO "Target user: $target_user"
+    log INFO "Homebrew prefix: $brew_prefix"
+    
+    # Step 1: Prepare the directory structure as root (no prompts)
+    show_progress "Creating Homebrew directories"
+    
+    # Create parent directories if needed
+    if [[ "$arch" == "arm64" ]]; then
+        # Apple Silicon: /opt/homebrew
+        mkdir -p "$brew_prefix"
+        chown -R "$target_user:staff" "$brew_prefix"
+    else
+        # Intel: /usr/local/Homebrew and related dirs
+        mkdir -p /usr/local/Homebrew
+        mkdir -p /usr/local/bin /usr/local/etc /usr/local/include /usr/local/lib
+        mkdir -p /usr/local/opt /usr/local/sbin /usr/local/share /usr/local/var
+        mkdir -p /usr/local/Caskroom /usr/local/Cellar /usr/local/Frameworks
+        chown -R "$target_user:staff" /usr/local/Homebrew
+        chown "$target_user:staff" /usr/local/bin /usr/local/etc /usr/local/include /usr/local/lib
+        chown "$target_user:staff" /usr/local/opt /usr/local/sbin /usr/local/share /usr/local/var
+        chown "$target_user:staff" /usr/local/Caskroom /usr/local/Cellar /usr/local/Frameworks 2>/dev/null || true
+    fi
+    complete_progress
+    
+    # Step 2: Clone Homebrew repository as the target user (no sudo inside)
+    show_progress "Cloning Homebrew repository"
+    
+    # Remove existing .git if any (partial install)
+    if [[ -d "$brew_prefix/.git" ]] && [[ ! -x "$brew_prefix/bin/brew" ]]; then
+        rm -rf "$brew_prefix/.git" 2>/dev/null || true
+    fi
+    
+    # Clone Homebrew (shallow clone for speed)
+    if [[ ! -x "$brew_prefix/bin/brew" ]]; then
+        if ! sudo -u "$target_user" git clone --depth=1 https://github.com/Homebrew/brew "$brew_prefix" 2>/dev/null; then
+            # If directory exists but isn't a valid brew install, try fresh clone
+            if [[ -d "$brew_prefix" ]]; then
+                # Back up any existing files
+                local backup_dir="/tmp/homebrew_backup_$$"
+                mkdir -p "$backup_dir"
+                mv "$brew_prefix"/* "$backup_dir/" 2>/dev/null || true
+                rm -rf "$brew_prefix"
+                mkdir -p "$brew_prefix"
+                chown "$target_user:staff" "$brew_prefix"
+                
+                if ! sudo -u "$target_user" git clone --depth=1 https://github.com/Homebrew/brew "$brew_prefix"; then
+                    log ERROR "Failed to clone Homebrew repository"
+                    # Restore backup
+                    mv "$backup_dir"/* "$brew_prefix/" 2>/dev/null || true
+                    rm -rf "$backup_dir"
+                    return 1
+                fi
+                rm -rf "$backup_dir"
+            else
+                log ERROR "Failed to clone Homebrew repository"
+                return 1
+            fi
+        fi
+    fi
+    complete_progress
+    
+    # Step 3: Create symlink for Intel Macs (brew needs to be at /usr/local/bin/brew)
+    if [[ "$arch" != "arm64" ]]; then
+        ln -sf "$brew_prefix/bin/brew" /usr/local/bin/brew 2>/dev/null || true
+    fi
+    
+    # Step 4: Initial Homebrew setup (as target user, no sudo)
+    show_progress "Initializing Homebrew"
+    
+    # Disable analytics
+    sudo -u "$target_user" bash -lc "$brew_prefix/bin/brew analytics off" 2>/dev/null || true
+    
+    # Force update to set up taps structure
+    sudo -u "$target_user" bash -lc "$brew_prefix/bin/brew update --force --quiet" 2>/dev/null || {
+        log WARN "Initial brew update had warnings (this is often okay)"
+    }
+    complete_progress
+    
+    # Step 5: Add Homebrew to user's shell profile
+    show_progress "Configuring shell environment"
+    local shell_profile="$target_home/.zprofile"
+    local shellenv_line="eval \"\$($brew_prefix/bin/brew shellenv)\""
+    
+    # Add to .zprofile if not already there
+    if [[ -f "$shell_profile" ]]; then
+        if ! grep -q "brew shellenv" "$shell_profile" 2>/dev/null; then
+            sudo -u "$target_user" bash -c "echo '$shellenv_line' >> '$shell_profile'"
+        fi
+    else
+        sudo -u "$target_user" bash -c "echo '$shellenv_line' > '$shell_profile'"
+    fi
+    
+    # Also add to .zshrc for interactive shells
+    local zshrc="$target_home/.zshrc"
+    if [[ -f "$zshrc" ]]; then
+        if ! grep -q "brew shellenv" "$zshrc" 2>/dev/null; then
+            sudo -u "$target_user" bash -c "echo '' >> '$zshrc'"
+            sudo -u "$target_user" bash -c "echo '# Homebrew' >> '$zshrc'"
+            sudo -u "$target_user" bash -c "echo '$shellenv_line' >> '$zshrc'"
+        fi
+    fi
+    complete_progress
+    
+    # Step 6: Export PATH for current session
+    export PATH="$brew_prefix/bin:$brew_prefix/sbin:$PATH"
+    eval "$($brew_prefix/bin/brew shellenv)" 2>/dev/null || true
+    
+    # Verify installation
+    if [[ -x "$brew_prefix/bin/brew" ]]; then
+        local brew_version
+        brew_version=$("$brew_prefix/bin/brew" --version 2>/dev/null | head -1 | awk '{print $2}')
+        log SUCCESS "Homebrew $brew_version installed successfully at $brew_prefix"
+        return 0
+    else
+        log ERROR "Homebrew installation verification failed"
         return 1
     fi
-    
-    # Add Homebrew to PATH for Apple Silicon Macs
-    if [[ -f "/opt/homebrew/bin/brew" ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        export PATH="/opt/homebrew/bin:$PATH"
-    elif [[ -f "/usr/local/bin/brew" ]]; then
-        eval "$(/usr/local/bin/brew shellenv)"
-        export PATH="/usr/local/bin:$PATH"
-    fi
-    
-    return 0
 }
 
 # Repair Homebrew

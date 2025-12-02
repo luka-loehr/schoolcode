@@ -7,9 +7,25 @@
 set -euo pipefail
 
 # Script metadata
-SCRIPT_VERSION="3.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
+
+# Fetch version from GitHub releases (with fallback)
+get_version() {
+    local version="0.0.0"  # Fallback version
+    
+    # Try to fetch latest release from GitHub
+    if command -v curl &>/dev/null; then
+        local github_version=$(curl -s --connect-timeout 2 "https://api.github.com/repos/luka-loehr/schoolcode/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+        if [[ -n "$github_version" ]] && [[ "$github_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            version="$github_version"
+        fi
+    fi
+    
+    echo "$version"
+}
+
+SCRIPT_VERSION=$(get_version)
 
 # Source utility libraries
 source "$SCRIPT_DIR/scripts/utils/logging.sh"
@@ -19,37 +35,41 @@ if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
     source "$SCRIPT_DIR/scripts/utils/config.sh"
 fi
 
+# Create convenience aliases for logging functions to match existing usage
+print_error() { log_error "$@"; }
+print_info() { log_info "$@"; }
+print_warning() { log_warn "$@"; }
+
 # Color codes for output
 HEADER='\033[1;34m'
 SUCCESS='\033[0;32m'
 WARNING='\033[1;33m'
 ERROR='\033[0;31m'
 INFO='\033[0;36m'
+DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Function to print formatted messages
+# Premium header
 print_header() {
-    echo -e "${HEADER}╔═══════════════════════════════════════╗"
-    echo -e "║           SchoolCode Hub v$SCRIPT_VERSION           ║"
-    echo -e "╚═══════════════════════════════════════╝${NC}"
+    local width=50
     echo ""
-}
-
-print_success() {
-    echo -e "${SUCCESS}✅ $1${NC}"
-}
-
-print_error() {
-    echo -e "${ERROR}❌ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${WARNING}⚠️  $1${NC}"
-}
-
-print_info() {
-    echo -e "${INFO}ℹ️  $1${NC}"
+    printf "${HEADER}"
+    printf "╭"
+    printf '─%.0s' $(seq 1 $((width-2)))
+    printf "╮\n"
+    
+    local title="SchoolCode v$SCRIPT_VERSION"
+    local padding=$(( (width - 2 - ${#title}) / 2 ))
+    printf "│"
+    printf ' %.0s' $(seq 1 $padding)
+    printf "%s" "$title"
+    printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#title})))
+    printf "│\n"
+    
+    printf "╰"
+    printf '─%.0s' $(seq 1 $((width-2)))
+    printf "╯${NC}\n"
 }
 
 # Status reporting functions
@@ -92,50 +112,114 @@ check_root() {
     fi
 }
 
+# Simple progress display (no background processes)
+show_progress() {
+    printf "  ${INFO}•${NC} %s..." "$1"
+}
+
+show_result() {
+    local result="$1"
+    local msg="${2:-}"
+    # Clear line and show result
+    printf "\r\033[K"  # Move to start and clear line
+    case "$result" in
+        success) printf "  ${SUCCESS}✓${NC} %s\n" "$msg" ;;
+        error)   printf "  ${ERROR}✗${NC} %s\n" "$msg" ;;
+        warning) printf "  ${WARNING}!${NC} %s\n" "$msg" ;;
+    esac
+}
+
 # Run compatibility check
-run_compatibility_check() {
-    print_info "Running compatibility check..."
-    if "$SCRIPT_DIR/scripts/utils/old_mac_compatibility.sh"; then
-        print_success "Compatibility check passed!"
+do_compatibility_check() {
+    show_progress "Checking system compatibility"
+    
+    # Source compatibility script to get access to its functions (in quiet mode)
+    export SCHOOLCODE_QUIET=true
+    source "$SCRIPT_DIR/scripts/utils/old_mac_compatibility.sh"
+    run_compatibility_check  # This calls the function from old_mac_compatibility.sh
+    
+    local errors=$(get_compatibility_errors)
+    local warnings=$(get_compatibility_warnings)
+    
+    if [[ $errors -gt 0 ]]; then
+        show_result "error" "System compatibility check failed"
+        printf "\n  ${ERROR}Issues found:${NC}\n"
+        while IFS= read -r issue; do
+            [[ -n "$issue" ]] && printf "    ${DIM}• %s${NC}\n" "$issue"
+        done < <(get_compatibility_issues)
+        return 1
+    elif [[ $warnings -gt 0 ]]; then
+        show_result "warning" "System compatible ($warnings warnings)"
         return 0
     else
-        print_error "Compatibility check failed!"
-        return 1
+        show_result "success" "System compatible"
+        return 0
     fi
 }
 
 # Run system repair
-run_system_repair() {
-    print_info "Running system repair..."
-    if "$SCRIPT_DIR/scripts/utils/system_repair.sh"; then
-        print_success "System repair completed!"
-        return 0
+do_system_repair() {
+    show_progress "Preparing system"
+    
+    # Source repair script to get access to its functions (in quiet mode)
+    export SCHOOLCODE_QUIET=true
+    source "$SCRIPT_DIR/scripts/utils/system_repair.sh"
+    run_system_repairs  # This calls the function from system_repair.sh
+    
+    local repairs=$(get_repairs_performed)
+    
+    if [[ $repairs -gt 0 ]]; then
+        show_result "success" "System prepared ($repairs fixes applied)"
     else
-        print_error "System repair failed!"
-        return 1
+        show_result "success" "System ready"
     fi
+    return 0
 }
 
 # Install tools
-install_tools() {
-    print_info "Installing development tools..."
-    if "$SCRIPT_DIR/scripts/install.sh"; then
-        print_success "Tools installation completed!"
+do_install_tools() {
+    show_progress "Installing development tools"
+    
+    # Create temporary file for error capture
+    local error_log="/tmp/schoolcode_install_error_$$.log"
+    
+    # Run install script with quiet mode, capture stderr
+    if SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/install.sh" -q 2>"$error_log"; then
+        show_result "success" "Development tools installed"
+        rm -f "$error_log"
         return 0
     else
-        print_error "Tools installation failed!"
-        return 1
+        local exit_code=$?
+        show_result "error" "Tool installation failed"
+        
+        # Show error details if available
+        if [[ -s "$error_log" ]]; then
+            printf "\n  ${DIM}Error details:${NC}\n"
+            while IFS= read -r line; do
+                [[ -n "$line" ]] && printf "    ${DIM}• %s${NC}\n" "$line"
+            done < "$error_log"
+        fi
+        
+        # Show latest install log file
+        local latest_log=$(ls -t /var/log/schoolcode/install_*.log 2>/dev/null | head -1)
+        if [[ -n "$latest_log" ]]; then
+            printf "\n  ${DIM}See full log: %s${NC}\n" "$latest_log"
+        fi
+        
+        rm -f "$error_log"
+        return "$exit_code"
     fi
 }
 
 # Setup guest account
-setup_guest_account() {
-    print_info "Setting up Guest account..."
-    if "$SCRIPT_DIR/scripts/setup/setup_guest_shell_init.sh"; then
-        print_success "Guest account setup completed!"
+do_setup_guest() {
+    show_progress "Configuring Guest account"
+    
+    if SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/setup/setup_guest_shell_init.sh" 2>/dev/null; then
+        show_result "success" "Guest account configured"
         return 0
     else
-        print_error "Guest account setup failed!"
+        show_result "error" "Guest setup failed"
         return 1
     fi
 }
@@ -249,23 +333,75 @@ run_tests() {
 # Automatic mode (no flags) - runs full installation
 automatic_mode() {
     print_header
-    print_info "Running automatic installation mode..."
     echo ""
     
     # Run full installation sequence
-    if run_compatibility_check && run_system_repair && install_tools && setup_guest_account; then
-        print_success "SchoolCode installation completed successfully!"
+    local failed=false
+    
+    do_compatibility_check || failed=true
+    
+    if [[ "$failed" != "true" ]]; then
+        do_system_repair || failed=true
+    fi
+    
+    if [[ "$failed" != "true" ]]; then
+        do_install_tools || failed=true
+    fi
+    
+    if [[ "$failed" != "true" ]]; then
+        do_setup_guest || failed=true
+    fi
+    
+    echo ""
+    
+    if [[ "$failed" != "true" ]]; then
+        # Success box
+        local width=50
+        printf "${SUCCESS}"
+        printf "╭"
+        printf '─%.0s' $(seq 1 $((width-2)))
+        printf "╮\n"
+        
+        local msg="Installation Complete!"
+        local padding=$(( (width - 2 - ${#msg}) / 2 ))
+        printf "│"
+        printf ' %.0s' $(seq 1 $padding)
+        printf "%s" "$msg"
+        printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#msg})))
+        printf "│\n"
+        
+        printf "╰"
+        printf '─%.0s' $(seq 1 $((width-2)))
+        printf "╯${NC}\n"
+        
         update_status "ready" "SchoolCode installation completed successfully"
         echo ""
-        print_info "You can now:"
-        echo "  • Switch to Guest account to test the installation"
-        echo "  • Run './schoolcode.sh --status' to check system status"
-        echo "  • Use './scripts/schoolcode-cli.sh' for advanced management"
+        printf "  ${DIM}Next steps:${NC}\n"
+        printf "    • Switch to Guest account to test\n"
+        printf "    • Run ${BOLD}./schoolcode.sh --status${NC} to verify\n"
     else
-        print_error "Installation failed at some step. Check logs for details."
+        # Error box
+        local width=50
+        printf "${ERROR}"
+        printf "╭"
+        printf '─%.0s' $(seq 1 $((width-2)))
+        printf "╮\n"
+        
+        local msg="Installation Failed"
+        local padding=$(( (width - 2 - ${#msg}) / 2 ))
+        printf "│"
+        printf ' %.0s' $(seq 1 $padding)
+        printf "%s" "$msg"
+        printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#msg})))
+        printf "│\n"
+        
+        printf "╰"
+        printf '─%.0s' $(seq 1 $((width-2)))
+        printf "╯${NC}\n"
+        
         update_status "error" "SchoolCode installation failed"
         echo ""
-        print_info "You can run './schoolcode.sh --status' to check system status."
+        printf "  ${DIM}Check logs: /var/log/schoolcode/${NC}\n"
         exit 1
     fi
 }
@@ -273,22 +409,13 @@ automatic_mode() {
 # Help function
 show_help() {
     print_header
-    echo "SchoolCode Hub - Central Management Interface"
     echo ""
-    echo "Usage:"
-    echo "  sudo ./schoolcode.sh                    # Install everything (automatic setup)"
-    echo "  sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (non-interactive)"
-    echo "  sudo ./schoolcode.sh --status           # Show system status"
-    echo "  sudo ./schoolcode.sh --help             # Show this help"
+    printf "  ${BOLD}Usage:${NC}\n"
+    printf "    sudo ./schoolcode.sh              ${DIM}Install everything${NC}\n"
+    printf "    sudo ./schoolcode.sh --uninstall  ${DIM}Remove SchoolCode${NC}\n"
+    printf "    sudo ./schoolcode.sh --status     ${DIM}Show system status${NC}\n"
+    printf "    sudo ./schoolcode.sh --help       ${DIM}Show this help${NC}\n"
     echo ""
-    echo "Installation Mode (no flags):"
-    echo "  Runs compatibility check, system repair, tool installation, and guest setup"
-    echo ""
-    echo "Uninstall Mode (--uninstall):"
-    echo "  Removes SchoolCode and all installed tools from Guest accounts (no prompts)"
-    echo ""
-    echo "Status Mode (--status):"
-    echo "  Shows comprehensive system health and installation status"
 }
 
 # Main script logic

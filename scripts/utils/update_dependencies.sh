@@ -166,13 +166,20 @@ update_symlinks() {
                 fi
                 
                 # Update other tool symlinks if needed
-                if command -v git &>/dev/null; then
-                    create_symlink "$(run_as_user which git)" "$ADMIN_TOOLS_DIR/bin/git"
-                fi
+                # Use explicit paths to avoid circular symlinks
+                for git_path in /opt/homebrew/bin/git /usr/local/bin/git /usr/bin/git; do
+                    if [[ -x "$git_path" ]] && [[ -e "$git_path" ]]; then
+                        create_symlink "$git_path" "$ADMIN_TOOLS_DIR/bin/git"
+                        break
+                    fi
+                done
                 
-                if command -v brew &>/dev/null; then
-                    create_symlink "$(run_as_user which brew)" "$ADMIN_TOOLS_DIR/bin/brew"
-                fi
+                for brew_path in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+                    if [[ -x "$brew_path" ]] && [[ -e "$brew_path" ]]; then
+                        create_symlink "$brew_path" "$ADMIN_TOOLS_DIR/bin/brew"
+                        break
+                    fi
+                done
             fi
         )
     else

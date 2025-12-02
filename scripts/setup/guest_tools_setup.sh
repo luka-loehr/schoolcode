@@ -195,19 +195,75 @@ INSTALLEOF
         
         # Create symlinks in admin tools directory
         
-        # Function to safely create symlinks
+        # Function to safely create symlinks (prevents broken/circular symlinks)
         create_symlink() {
             local source=$1
             local target=$2
+            local target_name=$(basename "$target")
             
-            if [ -e "$source" ]; then
-                ln -sf "$source" "$target" 2>/dev/null
-                echo "   ✓ Created symlink: $(basename "$target") -> $source"
+            # Skip if source is empty
+            if [ -z "$source" ]; then
+                echo "   ⚠️  $target_name: no source path provided"
+                return 1
             fi
+            
+            # Resolve the source to its real path to avoid circular symlinks
+            local real_source=$(realpath "$source" 2>/dev/null || echo "$source")
+            local real_target=$(realpath "$target" 2>/dev/null || echo "$target")
+            
+            # Check if source and target would be the same (circular symlink)
+            if [ "$real_source" = "$real_target" ]; then
+                echo "   ⚠️  $target_name: skipping circular symlink"
+                return 1
+            fi
+            
+            # Check if source exists and is a real file/executable (not a broken symlink)
+            if [ ! -e "$source" ]; then
+                echo "   ⚠️  $target_name: source does not exist ($source)"
+                return 1
+            fi
+            
+            # Check if source is itself a broken symlink
+            if [ -L "$source" ] && [ ! -e "$source" ]; then
+                echo "   ⚠️  $target_name: source is a broken symlink ($source)"
+                return 1
+            fi
+            
+            # Create the symlink
+            ln -sf "$source" "$target" 2>/dev/null
+            echo "   ✓ Created symlink: $target_name -> $source"
+            return 0
         }
         
         echo ""
         echo "🔗 Creating tool symlinks..."
+        
+        # Helper function to find tool path excluding schoolcode directories
+        find_real_tool_path() {
+            local tool_name=$1
+            local tool_path=""
+            
+            # Check common system locations first (exclude schoolcode paths)
+            for dir in /opt/homebrew/bin /usr/local/bin /usr/bin; do
+                if [ -x "$dir/$tool_name" ]; then
+                    # Make sure it's not a broken symlink
+                    if [ -e "$dir/$tool_name" ]; then
+                        tool_path="$dir/$tool_name"
+                        break
+                    fi
+                fi
+            done
+            
+            # If not found, try which but filter out schoolcode paths
+            if [ -z "$tool_path" ]; then
+                local which_result=$(which -a "$tool_name" 2>/dev/null | grep -v "$ADMIN_TOOLS_DIR" | head -1)
+                if [ -n "$which_result" ] && [ -e "$which_result" ]; then
+                    tool_path="$which_result"
+                fi
+            fi
+            
+            echo "$tool_path"
+        }
         
         # Detect Homebrew location - handle various installation layouts
         BREW_PREFIX=""
@@ -273,8 +329,12 @@ INSTALLEOF
             fi
         fi
         
-        if command -v git &> /dev/null; then
-            create_symlink "$(which git)" "$ADMIN_TOOLS_DIR/bin/git"
+        # Find and link git (use helper to avoid circular symlink)
+        GIT_PATH=$(find_real_tool_path "git")
+        if [ -n "$GIT_PATH" ]; then
+            create_symlink "$GIT_PATH" "$ADMIN_TOOLS_DIR/bin/git"
+        else
+            echo "   ⚠️  Could not find git executable"
         fi
         
         # Verify symlinks

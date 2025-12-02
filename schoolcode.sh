@@ -254,12 +254,6 @@ show_status() {
     log_operation_end "STATUS" "SUCCESS"
 }
 
-# Update SchoolCode
-update_schoolcode() {
-    print_info "Updating SchoolCode..."
-    "$SCRIPT_DIR/scripts/schoolcode-cli.sh" update
-}
-
 # Uninstall SchoolCode (interactive)
 uninstall_schoolcode() {
     print_warning "This will remove SchoolCode and all installed tools from Guest accounts."

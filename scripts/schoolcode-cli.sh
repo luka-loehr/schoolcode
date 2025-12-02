@@ -72,10 +72,9 @@ show_help() {
     echo ""
     echo -e "${CLI_BOLD}COMMANDS:${CLI_NC}"
     echo ""
-    echo -e "${CLI_INFO}Installation & Setup:${CLI_NC}"
+echo -e "${CLI_INFO}Installation & Setup:${CLI_NC}"
     echo "  install         Install SchoolCode system (use schoolcode.sh instead)"
     echo "  uninstall       Remove SchoolCode system"
-    echo "  update          Update SchoolCode and all dependencies"
     echo ""
     echo -e "${CLI_INFO}System Management:${CLI_NC}"
     echo "  status          Show system status"
@@ -106,7 +105,6 @@ show_help() {
     echo "  $0 status detailed      # Show detailed system status"
     echo "  $0 repair               # Fix system issues"
     echo "  $0 status --verbose     # Show detailed status"
-    echo "  $0 update               # Update to latest version from GitHub"
     echo "  $0 health detailed      # Run detailed health check"
     echo "  $0 repair               # Repair system prerequisites"
     echo "  $0 compatibility        # Check system compatibility"
@@ -605,63 +603,6 @@ cmd_permissions() {
     esac
 }
 
-# Update command
-cmd_update() {
-    require_root
-    
-    print_info "Checking for SchoolCode updates..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_info "Would update SchoolCode, Python, Git, Homebrew, and pip"
-        return
-    fi
-    
-    # Change to repo directory
-    cd "$(dirname "$SCRIPT_DIR")"
-    
-    # Check if we have changes to pull
-    git fetch --all --tags >/dev/null 2>&1
-    
-    # Check if there are updates available
-    local current_commit=$(git rev-parse HEAD)
-    local remote_commit=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master 2>/dev/null)
-    
-    if [[ "$current_commit" == "$remote_commit" ]]; then
-        print_success "SchoolCode is already up to date"
-    else
-        print_info "Updating SchoolCode from GitHub..."
-        
-        # Stash any local changes
-        if ! git diff-index --quiet HEAD -- 2>/dev/null; then
-            git stash push -m "SchoolCode update stash $(date +%Y%m%d_%H%M%S)" >/dev/null 2>&1
-        fi
-        
-        # Pull latest changes
-        git pull origin main >/dev/null 2>&1 || git pull origin master >/dev/null 2>&1
-        
-        # Make scripts executable
-        find "$SCRIPT_DIR" -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null
-        
-        print_success "SchoolCode updated successfully"
-    fi
-    
-    # Update dependencies (suppress verbose output)
-    print_info "Updating dependencies..."
-    bash "$SCRIPT_DIR/utils/update_dependencies.sh" >/dev/null 2>&1 || {
-        print_warning "Some dependency updates may have failed - check logs for details"
-    }
-    
-    # Apply updates silently
-    print_info "Applying updates..."
-    bash "$SCRIPT_DIR/install.sh" >/dev/null 2>&1 || {
-        print_warning "Some updates may not have been applied - check logs for details"
-    }
-    
-    print_success "Update process completed"
-}
-
-
-
 # Main command dispatcher
 main() {
     # Parse arguments
@@ -686,7 +627,6 @@ main() {
         guest)                  cmd_guest ;;
         logs)                   cmd_logs ;;
         permissions)            cmd_permissions ;;
-        update)                 cmd_update ;;
         *)
             print_error "Unknown command: $COMMAND"
             echo "Use '$0 --help' for usage information."

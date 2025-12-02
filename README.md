@@ -49,11 +49,10 @@ sudo ./scripts/schoolcode-cli.sh repair                  # Fix system issues
 sudo ./scripts/schoolcode-cli.sh compatibility           # Check system compatibility
 ```
 
-#### Installation & Updates
+#### Installation
 ```bash
 sudo ./scripts/schoolcode-cli.sh install [--no-backup]   # Install SchoolCode
 sudo ./scripts/schoolcode-cli.sh uninstall               # Remove SchoolCode
-sudo ./scripts/schoolcode-cli.sh update                  # Update all components
 ```
 
 #### Configuration & Tools
@@ -171,11 +170,6 @@ sudo ./scripts/schoolcode-cli.sh health detailed  # Detailed diagnostics
 ```bash
 sudo ./scripts/schoolcode-cli.sh repair        # Auto-fix common issues
 sudo ./scripts/schoolcode-cli.sh repair --verbose  # See what's being fixed
-```
-
-### Update Everything
-```bash
-sudo ./scripts/schoolcode-cli.sh update        # Update SchoolCode and dependencies
 ```
 
 ### View Installation Problems

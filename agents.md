@@ -25,7 +25,6 @@ sudo ./scripts/schoolcode-cli.sh install-auto      # Automatic install
 sudo ./scripts/schoolcode-cli.sh install-interactive # Interactive install
 sudo ./scripts/schoolcode-cli.sh status detailed   # Detailed status
 sudo ./scripts/schoolcode-cli.sh repair            # Fix system issues
-sudo ./scripts/schoolcode-cli.sh update            # Update everything
 sudo ./scripts/schoolcode-cli.sh uninstall         # Remove SchoolCode
 sudo ./scripts/schoolcode-cli.sh logs error        # View error logs
 ```
@@ -48,7 +47,6 @@ SchoolCode/
 ├── scripts/
 │   ├── schoolcode-cli.sh               # CLI interface (legacy)
 │   ├── install.sh                      # Core installation
-│   ├── update.sh                       # Update system
 │   ├── uninstall.sh                    # Uninstall system
 │   ├── utils/                          # Utility scripts
 │   │   ├── logging.sh                  # Centralized logging

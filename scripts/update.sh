@@ -64,35 +64,40 @@ fi
 # UTILITY FUNCTIONS
 #############################################
 
-# Logging functions
+# Source centralized logging
+if [[ -f "$SCRIPT_DIR/utils/logging.sh" ]]; then
+    source "$SCRIPT_DIR/utils/logging.sh"
+fi
+
+# Logging functions - use centralized if available
 log() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    # Write to log file
-    mkdir -p "$(dirname "$UPDATE_LOG")" 2>/dev/null || true
-    echo "[$timestamp] [$level] $message" >> "$UPDATE_LOG" 2>/dev/null || true
-    
-    # Write to console based on settings
-    if [[ "$QUIET" != "true" ]]; then
+    # Use centralized logging if available
+    if declare -f log_info >/dev/null 2>&1; then
         case "$level" in
-            ERROR)
-                echo -e "${RED}❌ $message${NC}" >&2
-                ;;
-            SUCCESS)
-                echo -e "${GREEN}✅ $message${NC}"
-                ;;
-            INFO)
-                echo -e "${BLUE}ℹ️  $message${NC}"
-                ;;
-            DEBUG)
-                if [[ "$VERBOSE" == "true" ]]; then
-                    echo -e "${YELLOW}🔍 $message${NC}"
-                fi
-                ;;
+            ERROR) log_error "[UPDATE] $message" ;;
+            SUCCESS) log_info "[UPDATE] ✅ $message" ;;
+            INFO) log_info "[UPDATE] $message" ;;
+            DEBUG) log_debug "[UPDATE] $message" ;;
+            *) log_info "[UPDATE] $message" ;;
         esac
+    else
+        # Fallback to local logging
+        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        mkdir -p "$(dirname "$UPDATE_LOG")" 2>/dev/null || true
+        echo "[$timestamp] [$level] $message" >> "$UPDATE_LOG" 2>/dev/null || true
+        
+        if [[ "$QUIET" != "true" ]]; then
+            case "$level" in
+                ERROR) echo -e "${RED}❌ $message${NC}" >&2 ;;
+                SUCCESS) echo -e "${GREEN}✅ $message${NC}" ;;
+                INFO) echo -e "${BLUE}ℹ️  $message${NC}" ;;
+                DEBUG) [[ "$VERBOSE" == "true" ]] && echo -e "${YELLOW}🔍 $message${NC}" ;;
+            esac
+        fi
     fi
 }
 

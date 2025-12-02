@@ -67,10 +67,10 @@ get_tool_test_cmd() {
         "brew") echo "--version" ;;
         "python3") echo "-c 'print(\"OK\")'" ;;
         "python") echo "-c 'print(\"OK\")'" ;;
-        "git") echo "--version > /dev/null 2>&1" ;;
-        "pip3") echo "--version > /dev/null 2>&1" ;;
-        "pip") echo "--version > /dev/null 2>&1" ;;
-        *) echo "--version > /dev/null 2>&1" ;;
+        "git") echo "--version" ;;
+        "pip3") echo "--version" ;;
+        "pip") echo "--version" ;;
+        *) echo "--version" ;;
     esac
 }
 

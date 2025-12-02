@@ -35,10 +35,30 @@ if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
     source "$SCRIPT_DIR/scripts/utils/config.sh"
 fi
 
-# Create convenience aliases for logging functions to match existing usage
-print_error() { log_error "$@"; }
-print_info() { log_info "$@"; }
-print_warning() { log_warn "$@"; }
+# Create convenience aliases for logging functions - consolidate approach
+print_error() {
+    if declare -f log_error >/dev/null 2>&1; then
+        log_error "$@"
+    else
+        echo -e "${ERROR}[ERROR]${NC} $@" >&2
+    fi
+}
+
+print_info() {
+    if declare -f log_info >/dev/null 2>&1; then
+        log_info "$@"
+    else
+        echo -e "${INFO}[INFO]${NC} $@"
+    fi
+}
+
+print_warning() {
+    if declare -f log_warn >/dev/null 2>&1; then
+        log_warn "$@"
+    else
+        echo -e "${WARNING}[WARN]${NC} $@" >&2
+    fi
+}
 
 # Color codes for output
 HEADER='\033[1;34m'
@@ -104,9 +124,11 @@ update_status() {
     log_info "Status: $status - $message"
 }
 
-# Check if running as root (skip for help)
+# Check if running as root (skip for help and logs)
 check_root() {
-    if [ "$EUID" -ne 0 ] && [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+    local cmd="${1:-}"
+    # These commands don't require root
+    if [ "$EUID" -ne 0 ] && [ "$cmd" != "--help" ] && [ "$cmd" != "-h" ] && [ "$cmd" != "--logs" ] && [ "$cmd" != "-l" ]; then
         print_error "This script must be run as root (use sudo)"
         exit 1
     fi
@@ -226,8 +248,10 @@ do_setup_guest() {
 
 # Show system status
 show_status() {
+    log_operation_start "STATUS" "Health check"
     print_info "Checking system status..."
     "$SCRIPT_DIR/scripts/schoolcode-cli.sh" status detailed
+    log_operation_end "STATUS" "SUCCESS"
 }
 
 # Update SchoolCode
@@ -260,21 +284,105 @@ uninstall_schoolcode_noninteractive() {
     fi
 }
 
-# Show logs
+# Show logs - comprehensive log viewing utility
 show_logs() {
-    print_info "Available log types:"
-    echo "1) All logs"
-    echo "2) Error logs only"
-    echo "3) Guest setup logs"
-    echo "4) Installation logs"
-    read -p "Select log type (1-4): " log_choice
+    local subcommand="${1:-}"
+    local lines="${2:-50}"
     
-    case $log_choice in
-        1) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs ;;
-        2) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs error ;;
-        3) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs guest ;;
-        4) "$SCRIPT_DIR/scripts/schoolcode-cli.sh" logs install ;;
-        *) print_error "Invalid selection" ;;
+    case "$subcommand" in
+        errors|error)
+            echo "${BOLD}=== Error Logs (last $lines) ===${NC}"
+            if [[ -f "/var/log/schoolcode/schoolcode-error.log" ]]; then
+                tail -n "$lines" /var/log/schoolcode/schoolcode-error.log
+            else
+                echo "No error logs found"
+            fi
+            ;;
+        warnings|warn)
+            echo "${BOLD}=== Warning Logs (last $lines) ===${NC}"
+            if [[ -f "/var/log/schoolcode/schoolcode.log" ]]; then
+                grep "\[WARN\]" /var/log/schoolcode/schoolcode.log | tail -n "$lines"
+            else
+                echo "No logs found"
+            fi
+            ;;
+        install)
+            echo "${BOLD}=== Latest Install Log ===${NC}"
+            local latest_install=$(ls -t /var/log/schoolcode/install_*.log 2>/dev/null | head -1)
+            if [[ -n "$latest_install" ]]; then
+                echo "File: $latest_install"
+                echo ""
+                tail -n "$lines" "$latest_install"
+            else
+                echo "No install logs found"
+            fi
+            ;;
+        guest)
+            echo "${BOLD}=== Guest Setup Logs (last $lines) ===${NC}"
+            if [[ -f "/var/log/schoolcode/guest-setup.log" ]]; then
+                tail -n "$lines" /var/log/schoolcode/guest-setup.log
+            else
+                echo "No guest logs found"
+            fi
+            ;;
+        today)
+            echo "${BOLD}=== Today's Logs ===${NC}"
+            local today=$(date '+%Y-%m-%d')
+            if [[ -f "/var/log/schoolcode/schoolcode.log" ]]; then
+                grep "$today" /var/log/schoolcode/schoolcode.log | tail -n "$lines"
+            else
+                echo "No logs found"
+            fi
+            ;;
+        events)
+            echo "${BOLD}=== Structured Events (JSON) ===${NC}"
+            if [[ -f "/var/log/schoolcode/events.json" ]]; then
+                cat /var/log/schoolcode/events.json
+            else
+                echo "No events logged"
+            fi
+            ;;
+        metrics)
+            echo "${BOLD}=== Performance Metrics (JSON) ===${NC}"
+            if [[ -f "/var/log/schoolcode/metrics.json" ]]; then
+                cat /var/log/schoolcode/metrics.json
+            else
+                echo "No metrics logged"
+            fi
+            ;;
+        tail)
+            echo "${BOLD}=== Tail Main Log (last $lines) ===${NC}"
+            if [[ -f "/var/log/schoolcode/schoolcode.log" ]]; then
+                tail -n "$lines" /var/log/schoolcode/schoolcode.log
+            else
+                echo "No logs found"
+            fi
+            ;;
+        all|"")
+            echo "${BOLD}SchoolCode Log Viewer${NC}"
+            echo ""
+            echo "${BOLD}Usage:${NC} ./schoolcode.sh --logs [TYPE] [LINES]"
+            echo ""
+            echo "${BOLD}Log Types:${NC}"
+            echo "  errors    - Show only error logs"
+            echo "  warnings  - Show only warning logs"
+            echo "  install   - Show latest installation log"
+            echo "  guest     - Show guest setup logs"
+            echo "  today     - Show today's logs"
+            echo "  events    - Show structured events (JSON)"
+            echo "  metrics   - Show performance metrics (JSON)"
+            echo "  tail      - Show recent main log entries"
+            echo ""
+            echo "${BOLD}Examples:${NC}"
+            echo "  ./schoolcode.sh --logs errors 100"
+            echo "  ./schoolcode.sh --logs install"
+            echo "  ./schoolcode.sh --logs tail 200"
+            ;;
+        *)
+            print_error "Unknown log type: $subcommand"
+            echo "Run './schoolcode.sh --logs' for usage"
+            exit 1
+            ;;
     esac
 }
 
@@ -335,6 +443,8 @@ automatic_mode() {
     print_header
     echo ""
     
+    log_operation_start "INSTALL" "SchoolCode v$SCRIPT_VERSION"
+    
     # Run full installation sequence
     local failed=false
     
@@ -375,6 +485,7 @@ automatic_mode() {
         printf "╯${NC}\n"
         
         update_status "ready" "SchoolCode installation completed successfully"
+        log_operation_end "INSTALL" "SUCCESS"
         echo ""
         printf "  ${DIM}Next steps:${NC}\n"
         printf "    • Switch to Guest account to test\n"
@@ -400,6 +511,7 @@ automatic_mode() {
         printf "╯${NC}\n"
         
         update_status "error" "SchoolCode installation failed"
+        log_operation_end "INSTALL" "FAILED"
         echo ""
         printf "  ${DIM}Check logs: /var/log/schoolcode/${NC}\n"
         exit 1
@@ -414,7 +526,12 @@ show_help() {
     printf "    sudo ./schoolcode.sh              ${DIM}Install everything${NC}\n"
     printf "    sudo ./schoolcode.sh --uninstall  ${DIM}Remove SchoolCode${NC}\n"
     printf "    sudo ./schoolcode.sh --status     ${DIM}Show system status${NC}\n"
+    printf "    sudo ./schoolcode.sh --logs       ${DIM}View logs${NC}\n"
     printf "    sudo ./schoolcode.sh --help       ${DIM}Show this help${NC}\n"
+    echo ""
+    printf "  ${BOLD}Log Viewer:${NC}\n"
+    printf "    ./schoolcode.sh --logs [type] [lines]\n"
+    printf "    ${DIM}Types: errors, warnings, install, guest, today, events, metrics, tail${NC}\n"
     echo ""
 }
 
@@ -435,6 +552,9 @@ main() {
             ;;
         --status|-s)
             show_status
+            ;;
+        --logs|-l)
+            show_logs "${2:-}" "${3:-50}"
             ;;
         --help|-h)
             show_help

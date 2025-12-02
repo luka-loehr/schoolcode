@@ -1,15 +1,28 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
-
+#
 # SchoolCode Uninstallation
 # Removes all installed components
 
 set -e
 
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source centralized logging
+if [[ -f "$SCRIPT_DIR/utils/logging.sh" ]]; then
+    source "$SCRIPT_DIR/utils/logging.sh"
+fi
+
 # Check if running with sudo
 if [ "$EUID" -ne 0 ]; then 
     echo "Error: Please run with sudo: sudo ./uninstall.sh"
     exit 1
+fi
+
+# Start operation
+if declare -f log_operation_start >/dev/null 2>&1; then
+    log_operation_start "UNINSTALL" "Removing SchoolCode"
 fi
 
 # Only show prompt if not called from CLI
@@ -91,6 +104,11 @@ if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
             sed -i '' -e '/# SchoolCode Tools (added by installer)/,+1 d' "$CONFIG_FILE" 2>/dev/null || true
         fi
     done
+fi
+
+# End operation
+if declare -f log_operation_end >/dev/null 2>&1; then
+    log_operation_end "UNINSTALL" "SUCCESS"
 fi
 
 # Only show completion message if not called from CLI

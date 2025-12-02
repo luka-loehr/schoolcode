@@ -1,19 +1,32 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
-
+#
 # Setup Guest Shell Initialization
 # Configures a LaunchAgent that sets up the Guest shell on every login
 
 set -e
+
+# Get the project root directory
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# Source logging utilities
+if [[ -f "$PROJECT_ROOT/scripts/utils/logging.sh" ]]; then
+    source "$PROJECT_ROOT/scripts/utils/logging.sh"
+fi
 
 # Check for quiet mode
 QUIET_MODE="${SCHOOLCODE_QUIET:-false}"
 
 log_msg() {
     [[ "$QUIET_MODE" != "true" ]] && echo "$1"
+    # Use centralized logging if available
+    if declare -f log_guest >/dev/null 2>&1; then
+        log_guest "INFO" "$1"
+    fi
     return 0
 }
 
+log_operation_start "GUEST_SETUP" "Configuring Guest shell initialization"
 log_msg "🔧 Setting up Guest shell initialization..."
 
 # Check if running as root
@@ -21,9 +34,6 @@ if [ "$EUID" -ne 0 ]; then
     echo "❌ Please run with sudo" >&2
     exit 1
 fi
-
-# Get the project root directory
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Copy the auto-setup script
 log_msg "📋 Installing auto-setup script..."
@@ -75,4 +85,6 @@ if [[ "$QUIET_MODE" != "true" ]]; then
     echo ""
     echo "Setup runs automatically when the Guest user opens Terminal."
     echo "No permission dialogs required! 🎉"
-fi 
+fi
+
+log_operation_end "GUEST_SETUP" "SUCCESS"

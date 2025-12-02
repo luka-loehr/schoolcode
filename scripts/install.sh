@@ -91,13 +91,18 @@ GIT_VERSION=""
 # LOGGING FUNCTIONS
 #############################################
 
+# Source centralized logging
+if [[ -f "$SCRIPT_DIR/utils/logging.sh" ]]; then
+    source "$SCRIPT_DIR/utils/logging.sh"
+fi
+
 # Initialize logging
 init_logging() {
     if [[ -n "$CUSTOM_LOG_PATH" ]]; then
-        LOG_FILE="$CUSTOM_LOG_PATH"
+        export LOG_FILE="$CUSTOM_LOG_PATH"
     else
         mkdir -p "$LOG_DIR" 2>/dev/null || true
-        LOG_FILE="${LOG_DIR}/install_$(date +%Y%m%d_%H%M%S).log"
+        export LOG_FILE="${LOG_DIR}/install_$(date +%Y%m%d_%H%M%S).log"
     fi
     
     # Create log file with header
@@ -111,47 +116,42 @@ init_logging() {
         echo "=========================================="
     } > "$LOG_FILE" 2>/dev/null || {
         echo "Warning: Could not create log file at $LOG_FILE"
-        LOG_FILE="/tmp/schoolcode_install_$$.log"
+        export LOG_FILE="/tmp/schoolcode_install_$$.log"
         echo "Using temporary log file: $LOG_FILE"
     }
 }
 
-# Logging function with levels
+# Logging function - use centralized if available, otherwise local
 log() {
     local level="${1:-INFO}"
     shift
     local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    # Write to log file
-    echo "[$timestamp] [$level] $message" >> "$LOG_FILE" 2>/dev/null || true
-    
-    # Write to console based on verbosity settings
-    if [[ "$QUIET" != "true" ]]; then
+    # Use centralized logging if available
+    if declare -f log_info >/dev/null 2>&1; then
         case "$level" in
-            ERROR)
-                echo -e "${RED}❌ $message${NC}" >&2
-                ;;
-            WARN)
-                echo -e "${YELLOW}⚠️  $message${NC}" >&2
-                ;;
-            SUCCESS)
-                echo -e "${GREEN}✅ $message${NC}"
-                ;;
-            INFO)
-                if [[ "$VERBOSE" == "true" ]] || [[ "$level" == "INFO" ]]; then
-                    echo -e "${BLUE}ℹ️  $message${NC}"
-                fi
-                ;;
-            DEBUG)
-                if [[ "$VERBOSE" == "true" ]]; then
-                    echo -e "${CYAN}🔍 $message${NC}"
-                fi
-                ;;
-            *)
-                echo "$message"
-                ;;
+            ERROR) log_error "[INSTALL] $message" ;;
+            WARN) log_warn "[INSTALL] $message" ;;
+            SUCCESS) log_info "[INSTALL] ✅ $message" ;;
+            INFO) log_info "[INSTALL] $message" ;;
+            DEBUG) log_debug "[INSTALL] $message" ;;
+            *) log_info "[INSTALL] $message" ;;
         esac
+    else
+        # Fallback to local logging
+        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        echo "[$timestamp] [$level] $message" >> "$LOG_FILE" 2>/dev/null || true
+        
+        if [[ "$QUIET" != "true" ]]; then
+            case "$level" in
+                ERROR) echo -e "${RED}❌ $message${NC}" >&2 ;;
+                WARN) echo -e "${YELLOW}⚠️  $message${NC}" >&2 ;;
+                SUCCESS) echo -e "${GREEN}✅ $message${NC}" ;;
+                INFO) [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}ℹ️  $message${NC}" ;;
+                DEBUG) [[ "$VERBOSE" == "true" ]] && echo -e "${CYAN}🔍 $message${NC}" ;;
+                *) echo "$message" ;;
+            esac
+        fi
     fi
 }
 

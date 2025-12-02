@@ -4,19 +4,35 @@
 # SchoolCode Centralized Logging System (Bash 3.2 Compatible)
 # Provides structured logging functions for all SchoolCode scripts
 
-# Log configuration
-LOG_DIR="/var/log/schoolcode"
-LOG_FILE="$LOG_DIR/schoolcode.log"
-ERROR_LOG="$LOG_DIR/schoolcode-error.log"
-SETUP_LOG="$LOG_DIR/guest-setup.log"
+# Guard against multiple sourcing
+[[ -n "${_SCHOOLCODE_LOGGING_SOURCED:-}" ]] && return 0
+_SCHOOLCODE_LOGGING_SOURCED=1
 
-# Ensure log directory exists
+# Log configuration (only set if not already defined)
+: "${LOG_DIR:=/var/log/schoolcode}"
+: "${LOG_FILE:=$LOG_DIR/schoolcode.log}"
+: "${ERROR_LOG:=$LOG_DIR/schoolcode-error.log}"
+: "${SETUP_LOG:=$LOG_DIR/guest-setup.log}"
+: "${EVENTS_LOG:=$LOG_DIR/events.json}"
+: "${METRICS_LOG:=$LOG_DIR/metrics.json}"
+
+# Ensure log directory exists and check integrity
 if [[ $EUID -eq 0 ]]; then
-    mkdir -p "$LOG_DIR"
-    chmod 755 "$LOG_DIR"
-    touch "$LOG_FILE" "$ERROR_LOG" "$SETUP_LOG"
-    chmod 644 "$LOG_FILE" "$ERROR_LOG" "$SETUP_LOG"
+    mkdir -p "$LOG_DIR" 2>/dev/null || true
+    chmod 755 "$LOG_DIR" 2>/dev/null || true
+    touch "$LOG_FILE" "$ERROR_LOG" "$SETUP_LOG" "$EVENTS_LOG" "$METRICS_LOG" 2>/dev/null || true
+    chmod 644 "$LOG_FILE" "$ERROR_LOG" "$SETUP_LOG" "$EVENTS_LOG" "$METRICS_LOG" 2>/dev/null || true
+    
+    # Initialize JSON files if empty
+    [[ ! -s "$EVENTS_LOG" ]] && echo "[]" > "$EVENTS_LOG" 2>/dev/null || true
+    [[ ! -s "$METRICS_LOG" ]] && echo "[]" > "$METRICS_LOG" 2>/dev/null || true
+    
+    # Clean up old install logs on initialization
+    cleanup_install_logs 2>/dev/null || true
 fi
+
+# Run integrity check (defined later, will run after functions are loaded)
+# This is called automatically when the file is sourced
 
 # Color codes for console output
 COLOR_RED='\033[0;31m'
@@ -86,9 +102,15 @@ write_log() {
     # Format: [TIMESTAMP] [LEVEL] [SCRIPT] [USER] MESSAGE
     local log_entry="[$timestamp] [$level] [$script_name] [$user] $message"
     
-    # Write to log file if writable
-    if [[ -w "$log_file" ]] 2>/dev/null; then
-        echo "$log_entry" >> "$log_file"
+    # Write to log file - create parent directory and file if needed
+    if [[ -n "$log_file" ]]; then
+        local log_dir=$(dirname "$log_file")
+        if [[ ! -d "$log_dir" ]] && [[ $EUID -eq 0 ]]; then
+            mkdir -p "$log_dir" 2>/dev/null || true
+        fi
+        
+        # Try to write, silently skip if no permission (for non-root log viewing)
+        { echo "$log_entry" >> "$log_file"; } 2>/dev/null || true
     fi
     
     # Show on console based on log level
@@ -146,7 +168,61 @@ log_guest() {
     local level="$1"
     local message="$2"
     local color=$(get_level_color "$level")
-    write_log "$level" "$message" "$SETUP_LOG" "$color"
+    write_log "$level" "[GUEST] $message" "$SETUP_LOG" "$color"
+    # Also write to main log for visibility
+    write_log "$level" "[GUEST] $message" "$LOG_FILE" "" "false"
+}
+
+# Operation-specific logging helpers with performance tracking
+log_operation_start() {
+    local operation="$1"
+    local details="${2:-}"
+    local msg="[$operation] ===== START ====="
+    [[ -n "$details" ]] && msg="$msg $details"
+    log_info "$msg"
+    
+    # Store start time for this operation
+    export OPERATION_START_TIME_${operation}=$(date +%s)
+    
+    # Log structured event
+    local event_data='{"operation":"'"$operation"'","status":"started","details":"'"${details:-}"'"}'
+    log_event "operation_start" "$event_data" "INFO"
+}
+
+log_operation_end() {
+    local operation="$1"
+    local status="${2:-SUCCESS}"
+    local details="${3:-}"
+    
+    # Calculate duration
+    local start_var="OPERATION_START_TIME_${operation}"
+    local start_time=${!start_var:-0}
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    local msg="[$operation] ===== END ($status) ====="
+    [[ -n "$details" ]] && msg="$msg $details"
+    [[ $duration -gt 0 ]] && msg="$msg (${duration}s)"
+    
+    if [[ "$status" == "SUCCESS" ]]; then
+        log_info "$msg"
+    elif [[ "$status" == "FAILED" ]]; then
+        log_error "$msg"
+    else
+        log_warn "$msg"
+    fi
+    
+    # Log metrics
+    if [[ $duration -gt 0 ]]; then
+        log_metric "${operation}_duration" "$duration" "seconds"
+    fi
+    
+    # Log structured event
+    local event_data='{"operation":"'"$operation"'","status":"'"$(echo $status | tr '[:upper:]' '[:lower:]')"'","duration":'"$duration"',"details":"'"${details:-}"'"}'
+    log_event "operation_end" "$event_data" "INFO"
+    
+    # Clean up start time variable
+    unset "$start_var"
 }
 
 # Function to log command execution
@@ -190,6 +266,140 @@ rotate_logs() {
             log_info "Rotated log file: $log_file"
         fi
     done
+}
+
+# Function to clean up old install logs
+cleanup_install_logs() {
+    local log_dir="${LOG_DIR:-/var/log/schoolcode}"
+    local max_logs=5
+    local max_age_days=7
+    
+    if [[ ! -d "$log_dir" ]]; then
+        return 0
+    fi
+    
+    # Remove logs older than max_age_days
+    find "$log_dir" -name "install_*.log" -type f -mtime +"$max_age_days" -delete 2>/dev/null || true
+    
+    # Keep only the most recent max_logs install logs
+    local install_logs=$(ls -t "$log_dir"/install_*.log 2>/dev/null | tail -n +$((max_logs + 1)))
+    if [[ -n "$install_logs" ]]; then
+        echo "$install_logs" | xargs rm -f 2>/dev/null || true
+        log_debug "Cleaned up old install logs"
+    fi
+}
+
+# Structured logging - log critical events in JSON format
+log_event() {
+    local event_type="$1"
+    local event_data="$2"
+    local severity="${3:-INFO}"
+    
+    local timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+    local hostname=$(hostname)
+    local user=$(whoami)
+    
+    # Create JSON event
+    local json_event=$(cat <<EOF
+{
+  "timestamp": "$timestamp",
+  "type": "$event_type",
+  "severity": "$severity",
+  "user": "$user",
+  "hostname": "$hostname",
+  "data": $event_data
+}
+EOF
+)
+    
+    # Append to events log (with proper JSON array handling)
+    if [[ -w "$EVENTS_LOG" ]] 2>/dev/null; then
+        local temp_file="${EVENTS_LOG}.tmp"
+        if [[ -f "$EVENTS_LOG" ]] && [[ -s "$EVENTS_LOG" ]]; then
+            local content=$(cat "$EVENTS_LOG")
+            # Check if array is empty []
+            if [[ "$content" == "[]" ]]; then
+                printf '[\n%s\n]\n' "$json_event" > "$EVENTS_LOG"
+            else
+                # Remove closing bracket ], add comma, new event, closing bracket
+                # Use sed to remove last line (the ]) for macOS compatibility  
+                sed '$ d' "$EVENTS_LOG" > "$temp_file"
+                printf ',\n%s\n]\n' "$json_event" >> "$temp_file"
+                mv "$temp_file" "$EVENTS_LOG"
+            fi
+        else
+            printf '[\n%s\n]\n' "$json_event" > "$EVENTS_LOG"
+        fi
+    fi
+}
+
+# Log metrics for performance tracking
+log_metric() {
+    local metric_name="$1"
+    local metric_value="$2"
+    local unit="${3:-}"
+    
+    local timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+    
+    local json_metric=$(cat <<EOF
+{
+  "timestamp": "$timestamp",
+  "metric": "$metric_name",
+  "value": $metric_value,
+  "unit": "$unit"
+}
+EOF
+)
+    
+    if [[ -w "$METRICS_LOG" ]] 2>/dev/null; then
+        local temp_file="${METRICS_LOG}.tmp"
+        if [[ -f "$METRICS_LOG" ]] && [[ -s "$METRICS_LOG" ]]; then
+            local content=$(cat "$METRICS_LOG")
+            # Check if array is empty []
+            if [[ "$content" == "[]" ]]; then
+                printf '[\n%s\n]\n' "$json_metric" > "$METRICS_LOG"
+            else
+                # Use sed to remove last line (the ]) for macOS compatibility
+                sed '$ d' "$METRICS_LOG" > "$temp_file"
+                printf ',\n%s\n]\n' "$json_metric" >> "$temp_file"
+                mv "$temp_file" "$METRICS_LOG"
+            fi
+        else
+            printf '[\n%s\n]\n' "$json_metric" > "$METRICS_LOG"
+        fi
+    fi
+}
+
+# Filter logs by severity
+filter_logs_by_severity() {
+    local severity="$1"
+    local log_file="${2:-$LOG_FILE}"
+    local lines="${3:-100}"
+    
+    if [[ ! -f "$log_file" ]]; then
+        echo "Log file not found: $log_file"
+        return 1
+    fi
+    
+    case "$(echo "$severity" | tr '[:lower:]' '[:upper:]')" in
+        ERROR|FATAL)
+            grep -E "\[(ERROR|FATAL)\]" "$log_file" | tail -n "$lines"
+            ;;
+        WARN|WARNING)
+            grep "\[WARN\]" "$log_file" | tail -n "$lines"
+            ;;
+        INFO)
+            grep "\[INFO\]" "$log_file" | tail -n "$lines"
+            ;;
+        DEBUG)
+            grep "\[DEBUG\]" "$log_file" | tail -n "$lines"
+            ;;
+        *)
+            echo "Unknown severity: $severity"
+            echo "Valid options: ERROR, WARN, INFO, DEBUG"
+            return 1
+            ;;
+    esac
 }
 
 # Function to show recent logs
@@ -241,8 +451,52 @@ log_silent() {
     fi
 }
 
+# Check log file integrity and setup
+check_log_integrity() {
+    local issues=0
+    
+    # Check if log directory exists
+    if [[ ! -d "$LOG_DIR" ]]; then
+        if [[ $EUID -eq 0 ]]; then
+            mkdir -p "$LOG_DIR" 2>/dev/null || {
+                echo "[WARNING] Cannot create log directory: $LOG_DIR" >&2
+                echo "[INFO] Falling back to /tmp for logging" >&2
+                export LOG_DIR="/tmp/schoolcode_logs"
+                mkdir -p "$LOG_DIR" 2>/dev/null
+                ((issues++))
+            }
+        else
+            echo "[WARNING] Log directory does not exist and no root access: $LOG_DIR" >&2
+            export LOG_DIR="/tmp/schoolcode_logs"
+            mkdir -p "$LOG_DIR" 2>/dev/null
+            ((issues++))
+        fi
+    fi
+    
+    # Check if log files are writable
+    for log_file in "$LOG_FILE" "$ERROR_LOG" "$SETUP_LOG"; do
+        if [[ -f "$log_file" ]] && [[ ! -w "$log_file" ]]; then
+            echo "[WARNING] Log file not writable: $log_file" >&2
+            ((issues++))
+        fi
+    done
+    
+    # Check disk space
+    if command -v df >/dev/null 2>&1; then
+        local available_mb=$(df "$LOG_DIR" 2>/dev/null | awk 'NR==2 {print int($4/1024)}')
+        if [[ -n "$available_mb" ]] && [[ $available_mb -lt 10 ]]; then
+            echo "[WARNING] Low disk space in log directory: ${available_mb}MB available" >&2
+            ((issues++))
+        fi
+    fi
+    
+    return $issues
+}
+
 # Export functions for use in other scripts
 export -f log_debug log_info log_warn log_error log_fatal log_guest
-export -f log_command log_function show_logs clear_logs rotate_logs
+export -f log_operation_start log_operation_end
+export -f log_command log_function show_logs clear_logs rotate_logs cleanup_install_logs
+export -f log_event log_metric filter_logs_by_severity check_log_integrity
 export -f log_silent is_quiet
-export -f start_spinner stop_spinner show_step set_total_steps 
+export -f start_spinner stop_spinner show_step set_total_steps

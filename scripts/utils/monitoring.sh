@@ -39,6 +39,7 @@ METRICS_TOOL_COUNT="0"
 METRICS_ERROR_COUNT="0"
 METRICS_GUEST_LOGINS="0"
 METRICS_LAST_CHECK="never"
+METRICS_MISSING_TOOLS=""  # Space-separated list of missing tools
 
 # Function to convert to uppercase (bash 3.2 compatible)
 to_upper() {
@@ -134,6 +135,7 @@ check_schoolcode_tools() {
     local schoolcode_tools_dir=$(get_config "SCHOOLCODE_TOOLS_DIR")
     local tools_working=0
     local tools_total=0
+    local missing_tools=""
     
     if [[ ! -d "$schoolcode_tools_dir/bin" ]]; then
         set_health_status "schoolcode_tools" "unhealthy"
@@ -156,6 +158,7 @@ check_schoolcode_tools() {
                     log_debug "Tool working: $tool"
                 else
                     log_warn "Tool not functioning: $tool"
+                    missing_tools="$missing_tools $tool"
                 fi
             else
                 ((tools_working++))
@@ -163,10 +166,12 @@ check_schoolcode_tools() {
             fi
         else
             log_warn "Tool missing or not executable: $tool"
+            missing_tools="$missing_tools $tool"
         fi
     done
     
     METRICS_TOOL_COUNT="$tools_working/$tools_total"
+    METRICS_MISSING_TOOLS="${missing_tools# }"  # Trim leading space
     
     if [[ $tools_working -eq $tools_total ]]; then
         set_health_status "schoolcode_tools" "healthy"
@@ -428,7 +433,9 @@ validate_system_resources() {
 
 # Function to run all health checks
 run_health_checks() {
-    log_info "Running SchoolCode health checks..."
+    # Suppress verbose logging during checks
+    local old_quiet="${SCHOOLCODE_QUIET:-false}"
+    export SCHOOLCODE_QUIET=true
     
     local overall_score=0
     local check_count=0
@@ -444,6 +451,9 @@ run_health_checks() {
     # Additional checks for old systems
     check_system_age; local age_result=$?
     validate_system_resources; local resource_result=$?
+    
+    # Restore logging
+    export SCHOOLCODE_QUIET="$old_quiet"
     
     # Calculate overall health score (including new checks)
     for result in $disk_result $tools_result $agent_result $brew_result $perms_result $guest_result $age_result; do
@@ -514,49 +524,66 @@ EOF
 show_health_status() {
     local show_details="${1:-false}"
     
-    echo "╔═══════════════════════════════════════╗"
-    echo "║         SchoolCode Health Status        ║"
-    echo "╚═══════════════════════════════════════╝"
+    # Compact header
+    echo ""
+    echo "╭────────────────────────────────────────╮"
+    echo "│       SchoolCode System Status         │"
+    echo "╰────────────────────────────────────────╯"
     echo ""
     
-    # Overall status
+    # Overall status with icon
     local overall_status=$(get_health_status "overall")
-    local overall_color=$(get_status_color "$overall_status")
+    local overall_icon="✅"
+    case "$overall_status" in
+        "degraded") overall_icon="⚠️ " ;;
+        "unhealthy") overall_icon="❌" ;;
+    esac
     local overall_upper=$(to_upper "$overall_status")
-    echo -e "🏥 Overall Status: ${overall_color}${overall_upper}\033[0m"
+    echo -e "  Status: $overall_icon $overall_upper"
     echo ""
     
-    # Component status
-    echo "📊 Component Status:"
+    # Component status - only show if degraded or unhealthy
+    local has_issues=false
     local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
     for component in $components; do
         local status=$(get_health_status "$component")
-        local icon="❓"
-        
-        case "$status" in
-            "healthy") icon="✅" ;;
-            "degraded") icon="⚠️ " ;;
-            "unhealthy") icon="❌" ;;
-        esac
-        
-        local status_upper=$(to_upper "$status")
-        printf "  %-15s %s %s\n" "$component:" "$icon" "$status_upper"
+        if [[ "$status" != "healthy" ]]; then
+            has_issues=true
+            break
+        fi
     done
     
-    echo ""
-    echo "📈 Metrics:"
-    echo "  Tools Available: $METRICS_TOOL_COUNT"
-    echo "  Last Check:      $METRICS_LAST_CHECK"
-    echo "  System Uptime:   $(get_uptime)"
+    if [[ "$has_issues" == "true" ]] || [[ "$show_details" == "true" ]]; then
+        echo "  Components:"
+        for component in $components; do
+            local status=$(get_health_status "$component")
+            local icon="✅"
+            
+            case "$status" in
+                "degraded") icon="⚠️ " ;;
+                "unhealthy") icon="❌" ;;
+            esac
+            
+            # Only show non-healthy components in brief mode
+            if [[ "$show_details" == "true" ]] || [[ "$status" != "healthy" ]]; then
+                local display_name=$(echo "$component" | sed 's/_/ /g')
+                printf "    • %-18s %s\n" "$display_name" "$icon"
+            fi
+        done
+        echo ""
+    fi
+    
+    # Metrics - compact
+    echo "  Tools: $METRICS_TOOL_COUNT available"
+    
+    # Show missing tools if any
+    if [[ -n "$METRICS_MISSING_TOOLS" ]]; then
+        echo "  Missing: $METRICS_MISSING_TOOLS"
+    fi
     
     if [[ "$show_details" == "true" ]]; then
-        echo ""
-        echo "🔍 Detailed Information:"
-        echo "  SchoolCode Tools Dir: $(get_config 'SCHOOLCODE_TOOLS_DIR')"
-        echo "  Guest Tools Dir: $(get_config 'GUEST_TOOLS_DIR')"
-        echo "  Hostname:        $(hostname)"
-        echo "  macOS Version:   $(sw_vers -productVersion 2>/dev/null || echo "unknown")"
-        echo "  Current User:    $(whoami)"
+        echo "  Uptime: $(get_uptime)"
+        echo "  macOS: $(sw_vers -productVersion 2>/dev/null || echo "unknown")"
     fi
     
     echo ""

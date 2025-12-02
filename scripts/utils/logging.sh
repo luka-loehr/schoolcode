@@ -168,7 +168,9 @@ log_guest() {
     local level="$1"
     local message="$2"
     local color=$(get_level_color "$level")
-    write_log "$level" "[GUEST] $message" "$SETUP_LOG" "$color"
+    local show_console="true"
+    is_quiet && show_console="false"
+    write_log "$level" "[GUEST] $message" "$SETUP_LOG" "$color" "$show_console"
     # Also write to main log for visibility
     write_log "$level" "[GUEST] $message" "$LOG_FILE" "" "false"
 }

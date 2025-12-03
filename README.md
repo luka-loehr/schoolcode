@@ -39,14 +39,7 @@ sudo ./schoolcode.sh --status
 
 ## Auto-update LaunchDaemon
 
-Use the provided daemon to keep SchoolCode aligned with the latest tagged release (not just the latest commit):
-
-```bash
-sudo cp SchoolCode_launchagents/com.schoolcode.autoupdate.plist /Library/LaunchDaemons/
-sudo chown root:wheel /Library/LaunchDaemons/com.schoolcode.autoupdate.plist
-sudo launchctl load -w /Library/LaunchDaemons/com.schoolcode.autoupdate.plist
-```
-
+The installer now writes and loads the auto-update LaunchDaemon automatically, so a standard `sudo ./schoolcode.sh` run sets up periodic updates without any extra steps. `sudo ./schoolcode.sh --status` will report an error if the LaunchDaemon is missing or unloaded.
 The daemon runs `/Library/SchoolCode/repo/scripts/system_update.sh`, checks GitHub releases, and only performs a `git reset --hard` when a newer release tag exists. Update logs live in `/var/log/schoolcode/daemon_update.log`.
 
 ## Basic Commands

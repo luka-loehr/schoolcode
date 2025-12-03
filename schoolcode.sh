@@ -95,8 +95,9 @@ print_header() {
 # Status reporting functions
 get_schoolcode_version() {
     local version="latest"
-    if [[ -f "$PROJECT_ROOT/version.txt" ]]; then
-        local file_version=$(cat "$PROJECT_ROOT/version.txt" 2>/dev/null | head -1 | tr -d '\n\r')
+    local installed_version_file="/Library/SchoolCode/.installedversion"
+    if [[ -f "$installed_version_file" ]]; then
+        local file_version=$(head -1 "$installed_version_file" 2>/dev/null | tr -d '\n\r')
         if [[ -n "$file_version" ]]; then
             version="$file_version"
         fi
@@ -104,6 +105,25 @@ get_schoolcode_version() {
     echo "$version"
 }
 
+get_installer_ip() {
+    local ip=""
+    if command -v ifconfig &>/dev/null; then
+        ip=$(ifconfig | grep -E "inet [0-9]" | grep -v "127.0.0.1" | head -1 | awk '{print $2}' 2>/dev/null || echo "")
+    elif command -v ip &>/dev/null; then
+        ip=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' 2>/dev/null || echo "")
+    fi
+    if [[ -z "$ip" ]]; then
+        ip="127.0.0.1"
+    fi
+    echo "$ip"
+}
+
+update_status() {
+    local status="$1"
+    local message="${2:-}"
+    # Status updates are logged but no longer write to marker file
+    log_info "Status: $status - $message"
+}
 get_installer_ip() {
     local ip=""
     if command -v ifconfig &>/dev/null; then

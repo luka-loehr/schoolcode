@@ -46,15 +46,6 @@ get_installed_version() {
         fi
     fi
 
-    if [[ -f "$REPO_ROOT/version.txt" ]]; then
-        local repo_version
-        repo_version=$(head -1 "$REPO_ROOT/version.txt" 2>/dev/null | tr -d '\r\n')
-        if [[ -n "$repo_version" ]]; then
-            echo "$repo_version"
-            return
-        fi
-    fi
-
     echo "0.0.0"
 }
 

@@ -174,11 +174,9 @@ complete_progress() {
 }
 
 get_project_version() {
-    local version_file="$PROJECT_ROOT/version.txt"
-
-    if [[ -f "$version_file" ]]; then
+    if [[ -f "$INSTALLED_VERSION_FILE" ]]; then
         local version
-        version=$(head -1 "$version_file" 2>/dev/null | tr -d '\r\n')
+        version=$(head -1 "$INSTALLED_VERSION_FILE" 2>/dev/null | tr -d '\r\n')
         if [[ -n "$version" ]]; then
             echo "$version"
             return
@@ -1118,11 +1116,6 @@ setup_schoolcode_tools() {
     if [[ -f "$SCRIPT_DIR/uninstall.sh" ]]; then
         cp "$SCRIPT_DIR/uninstall.sh" "$INSTALL_PREFIX/scripts/" 2>/dev/null || true
         chmod +x "$INSTALL_PREFIX/scripts/uninstall.sh" 2>/dev/null || true
-    fi
-    
-    # Copy version file
-    if [[ -f "$PROJECT_ROOT/version.txt" ]]; then
-        cp "$PROJECT_ROOT/version.txt" "$INSTALL_PREFIX/" 2>/dev/null || true
     fi
     
     complete_progress

@@ -23,15 +23,20 @@ fi
 HEALTH_CHECK_FILE="/var/log/schoolcode/health-status.json"
 METRICS_FILE="/var/log/schoolcode/metrics.json"
 ALERTS_FILE="/var/log/schoolcode/alerts.log"
+AUTOUPDATE_PLIST="/Library/LaunchDaemons/com.schoolcode.autoupdate.plist"
 
 # Health check status variables (bash 3.2 compatible)
 HEALTH_OVERALL="unknown"
 HEALTH_ADMIN_TOOLS="unknown"
 HEALTH_GUEST_SETUP="unknown"
 HEALTH_LAUNCHAGENT="unknown"
+HEALTH_LAUNCHDAEMON="unknown"
 HEALTH_HOMEBREW="unknown"
 HEALTH_PERMISSIONS="unknown"
 HEALTH_DISK_SPACE="unknown"
+
+# Human-readable issue messages
+HEALTH_ISSUES=""
 
 # Performance metrics variables
 METRICS_SETUP_TIME="0"
@@ -46,6 +51,17 @@ to_upper() {
     echo "$1" | tr '[:lower:]' '[:upper:]'
 }
 
+# Track issues for status output (bash 3.2 compatible)
+add_health_issue() {
+    local message="$1"
+
+    if [[ -z "$HEALTH_ISSUES" ]]; then
+        HEALTH_ISSUES="• $message"
+    else
+        HEALTH_ISSUES="$HEALTH_ISSUES\n• $message"
+    fi
+}
+
 # Function to set health status
 set_health_status() {
     local component="$1"
@@ -56,6 +72,7 @@ set_health_status() {
         "schoolcode_tools") HEALTH_SCHOOLCODE_TOOLS="$status" ;;
         "guest_setup") HEALTH_GUEST_SETUP="$status" ;;
         "launchagent") HEALTH_LAUNCHAGENT="$status" ;;
+        "launchdaemon") HEALTH_LAUNCHDAEMON="$status" ;;
         "homebrew") HEALTH_HOMEBREW="$status" ;;
         "permissions") HEALTH_PERMISSIONS="$status" ;;
         "disk_space") HEALTH_DISK_SPACE="$status" ;;
@@ -71,6 +88,7 @@ get_health_status() {
         "schoolcode_tools") echo "$HEALTH_SCHOOLCODE_TOOLS" ;;
         "guest_setup") echo "$HEALTH_GUEST_SETUP" ;;
         "launchagent") echo "$HEALTH_LAUNCHAGENT" ;;
+        "launchdaemon") echo "$HEALTH_LAUNCHDAEMON" ;;
         "homebrew") echo "$HEALTH_HOMEBREW" ;;
         "permissions") echo "$HEALTH_PERMISSIONS" ;;
         "disk_space") echo "$HEALTH_DISK_SPACE" ;;
@@ -207,13 +225,14 @@ check_schoolcode_tools() {
 # Function to check LaunchAgent
 check_launchagent() {
     local plist_file="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
-    
+
     if [[ ! -f "$plist_file" ]]; then
         set_health_status "launchagent" "unhealthy"
         log_error "LaunchAgent plist missing: $plist_file"
+        add_health_issue "Guest LaunchAgent missing at $plist_file"
         return 1
     fi
-    
+
     # Check if LaunchAgent is loaded
     if launchctl list 2>/dev/null | grep -q "com.schoolcode.guestsetup"; then
         set_health_status "launchagent" "healthy"
@@ -222,6 +241,31 @@ check_launchagent() {
     else
         set_health_status "launchagent" "degraded"
         log_warn "LaunchAgent plist exists but not loaded"
+        add_health_issue "Guest LaunchAgent exists but is not loaded (com.schoolcode.guestsetup)"
+        return 2
+    fi
+}
+
+# Function to check auto-update LaunchDaemon
+check_launchdaemon() {
+    local plist_file="$AUTOUPDATE_PLIST"
+    local label="com.schoolcode.autoupdate"
+
+    if [[ ! -f "$plist_file" ]]; then
+        set_health_status "launchdaemon" "unhealthy"
+        log_error "Auto-update LaunchDaemon plist missing: $plist_file"
+        add_health_issue "Auto-update LaunchDaemon missing at $plist_file"
+        return 1
+    fi
+
+    if launchctl list 2>/dev/null | grep -q "$label"; then
+        set_health_status "launchdaemon" "healthy"
+        log_debug "Auto-update LaunchDaemon is loaded"
+        return 0
+    else
+        set_health_status "launchdaemon" "degraded"
+        log_warn "Auto-update LaunchDaemon plist exists but not loaded"
+        add_health_issue "Auto-update LaunchDaemon exists but is not loaded ($label)"
         return 2
     fi
 }
@@ -455,27 +499,30 @@ run_health_checks() {
     # Suppress verbose logging during checks
     local old_quiet="${SCHOOLCODE_QUIET:-false}"
     export SCHOOLCODE_QUIET=true
-    
+
+    HEALTH_ISSUES=""
+
     local overall_score=0
     local check_count=0
-    
+
     # Run individual checks
     check_disk_space; local disk_result=$?
     check_schoolcode_tools; local tools_result=$?
     check_launchagent; local agent_result=$?
+    check_launchdaemon; local daemon_result=$?
     check_homebrew; local brew_result=$?
     check_permissions; local perms_result=$?
     check_guest_setup; local guest_result=$?
-    
+
     # Additional checks for old systems
     check_system_age; local age_result=$?
     validate_system_resources; local resource_result=$?
     
     # Restore logging
     export SCHOOLCODE_QUIET="$old_quiet"
-    
+
     # Calculate overall health score (including new checks)
-    for result in $disk_result $tools_result $agent_result $brew_result $perms_result $guest_result $age_result; do
+    for result in $disk_result $tools_result $agent_result $daemon_result $brew_result $perms_result $guest_result $age_result; do
         case $result in
             0) overall_score=$((overall_score + 100)) ;;  # healthy
             2) overall_score=$((overall_score + 50)) ;;   # degraded
@@ -516,6 +563,7 @@ save_health_status() {
     "schoolcode_tools": "$(get_health_status schoolcode_tools)",
     "guest_setup": "$(get_health_status guest_setup)",
     "launchagent": "$(get_health_status launchagent)",
+    "launchdaemon": "$(get_health_status launchdaemon)",
     "homebrew": "$(get_health_status homebrew)",
     "permissions": "$(get_health_status permissions)",
     "disk_space": "$(get_health_status disk_space)"
@@ -563,7 +611,7 @@ show_health_status() {
     
     # Component status - only show if degraded or unhealthy
     local has_issues=false
-    local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
+    local components="schoolcode_tools guest_setup launchagent launchdaemon homebrew permissions disk_space"
     for component in $components; do
         local status=$(get_health_status "$component")
         if [[ "$status" != "healthy" ]]; then
@@ -591,7 +639,13 @@ show_health_status() {
         done
         echo ""
     fi
-    
+
+    if [[ -n "$HEALTH_ISSUES" ]]; then
+        echo "  Issues:"
+        printf "    %b\n" "$HEALTH_ISSUES"
+        echo ""
+    fi
+
     # Metrics - compact
     echo "  Tools: $METRICS_TOOL_COUNT available"
     
@@ -671,7 +725,7 @@ check_and_alert() {
     esac
     
     # Specific component alerts
-    local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
+    local components="schoolcode_tools guest_setup launchagent launchdaemon homebrew permissions disk_space"
     for component in $components; do
         local status=$(get_health_status "$component")
         case "$status" in

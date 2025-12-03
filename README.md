@@ -39,7 +39,9 @@ sudo ./schoolcode.sh --status
 
 ## Auto-update LaunchDaemon
 
-Use the provided daemon to keep SchoolCode aligned with the latest tagged release (not just the latest commit):
+The installer now writes and loads the auto-update LaunchDaemon automatically, so a standard `sudo ./schoolcode.sh` run sets up periodic updates without any extra steps. `sudo ./schoolcode.sh --status` will report an error if the LaunchDaemon is missing or unloaded.
+
+If you need to reinstall it manually, use:
 
 ```bash
 sudo cp SchoolCode_launchagents/com.schoolcode.autoupdate.plist /Library/LaunchDaemons/

@@ -15,7 +15,13 @@ log() {
     shift
     local message="$*"
     mkdir -p "$LOG_DIR"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $message" | tee -a "$LOG_FILE" >/dev/null
+    local log_line="[$(date '+%Y-%m-%d %H:%M:%S')] [$level] $message"
+    
+    # Write to log file
+    echo "$log_line" >> "$LOG_FILE"
+    
+    # Also display to terminal
+    echo "$message"
 }
 
 get_latest_release_version() {
@@ -89,43 +95,29 @@ reset_to_release_tag() {
 }
 
 reload_launchd_services() {
-    log INFO "Reloading LaunchAgent and LaunchDaemon after update"
-    
     local launchagent_plist="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
     local launchdaemon_plist="/Library/LaunchDaemons/com.schoolcode.autoupdate.plist"
     
     # Unload and reload LaunchAgent if it exists
     if [[ -f "$launchagent_plist" ]]; then
         if launchctl unload "$launchagent_plist" 2>/dev/null; then
-            log INFO "Unloaded LaunchAgent: com.schoolcode.guestsetup"
+            echo "  ✓ LaunchAgent reloaded"
         else
-            log WARN "Failed to unload LaunchAgent (may not be loaded)"
+            echo "  ⚠ LaunchAgent reload skipped (not loaded)"
         fi
         
-        if launchctl load -w "$launchagent_plist" 2>/dev/null; then
-            log INFO "Reloaded LaunchAgent: com.schoolcode.guestsetup"
-        else
-            log ERROR "Failed to reload LaunchAgent"
-        fi
-    else
-        log WARN "LaunchAgent plist not found at $launchagent_plist"
+        launchctl load -w "$launchagent_plist" 2>/dev/null || true
     fi
     
     # Unload and reload LaunchDaemon if it exists
     if [[ -f "$launchdaemon_plist" ]]; then
         if launchctl unload "$launchdaemon_plist" 2>/dev/null; then
-            log INFO "Unloaded LaunchDaemon: com.schoolcode.autoupdate"
+            echo "  ✓ LaunchDaemon reloaded"
         else
-            log WARN "Failed to unload LaunchDaemon (may not be loaded)"
+            echo "  ⚠ LaunchDaemon reload skipped (not loaded)"
         fi
         
-        if launchctl load -w "$launchdaemon_plist" 2>/dev/null; then
-            log INFO "Reloaded LaunchDaemon: com.schoolcode.autoupdate"
-        else
-            log ERROR "Failed to reload LaunchDaemon"
-        fi
-    else
-        log WARN "LaunchDaemon plist not found at $launchdaemon_plist"
+        launchctl load -w "$launchdaemon_plist" 2>/dev/null || true
     fi
 }
 
@@ -144,6 +136,8 @@ main() {
 
     local installed_version latest_version
     installed_version=$(get_installed_version)
+    
+    echo "Checking for updates..."
     latest_version=$(get_latest_release_version)
 
     if [[ -z "$latest_version" ]]; then
@@ -152,23 +146,28 @@ main() {
     fi
 
     log INFO "Installed version: ${installed_version}"
-    log INFO "Latest release: ${latest_version}"
+    log INFO "Latest release available: ${latest_version}"
 
     if ! is_newer_version "$installed_version" "$latest_version"; then
         log INFO "No update required; installed release is current"
         exit 0
     fi
 
-    log INFO "Updating repository to release ${latest_version}"
+    log INFO "New release found: ${latest_version}"
+    log INFO "Fetching release ${latest_version}..."
     reset_to_release_tag "$latest_version"
 
+    log INFO "Installing release ${latest_version}..."
     run_install
     record_installed_version "$latest_version"
     
     # Reload LaunchAgent and LaunchDaemon to apply updates
+    log INFO "Reloading LaunchAgent..."
+    log INFO "Reloading LaunchDaemon..."
     reload_launchd_services
 
-    log INFO "Update completed successfully"
+    echo ""
+    log INFO "✓ Update completed successfully"
 }
 
 main "$@"

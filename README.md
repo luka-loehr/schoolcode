@@ -130,6 +130,3 @@ SchoolCode/
 ## License
 
 Apache License 2.0 - © 2025 Luka Löhr
-
-
-> Auto-update test note added at 2025-12-03 10:43:30

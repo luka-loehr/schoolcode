@@ -88,6 +88,47 @@ reset_to_release_tag() {
     fi
 }
 
+reload_launchd_services() {
+    log INFO "Reloading LaunchAgent and LaunchDaemon after update"
+    
+    local launchagent_plist="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
+    local launchdaemon_plist="/Library/LaunchDaemons/com.schoolcode.autoupdate.plist"
+    
+    # Unload and reload LaunchAgent if it exists
+    if [[ -f "$launchagent_plist" ]]; then
+        if launchctl unload "$launchagent_plist" 2>/dev/null; then
+            log INFO "Unloaded LaunchAgent: com.schoolcode.guestsetup"
+        else
+            log WARN "Failed to unload LaunchAgent (may not be loaded)"
+        fi
+        
+        if launchctl load -w "$launchagent_plist" 2>/dev/null; then
+            log INFO "Reloaded LaunchAgent: com.schoolcode.guestsetup"
+        else
+            log ERROR "Failed to reload LaunchAgent"
+        fi
+    else
+        log WARN "LaunchAgent plist not found at $launchagent_plist"
+    fi
+    
+    # Unload and reload LaunchDaemon if it exists
+    if [[ -f "$launchdaemon_plist" ]]; then
+        if launchctl unload "$launchdaemon_plist" 2>/dev/null; then
+            log INFO "Unloaded LaunchDaemon: com.schoolcode.autoupdate"
+        else
+            log WARN "Failed to unload LaunchDaemon (may not be loaded)"
+        fi
+        
+        if launchctl load -w "$launchdaemon_plist" 2>/dev/null; then
+            log INFO "Reloaded LaunchDaemon: com.schoolcode.autoupdate"
+        else
+            log ERROR "Failed to reload LaunchDaemon"
+        fi
+    else
+        log WARN "LaunchDaemon plist not found at $launchdaemon_plist"
+    fi
+}
+
 run_install() {
     log INFO "Starting installation from ${REPO_ROOT}"
     "$REPO_ROOT/schoolcode.sh" --install
@@ -123,6 +164,9 @@ main() {
 
     run_install
     record_installed_version "$latest_version"
+    
+    # Reload LaunchAgent and LaunchDaemon to apply updates
+    reload_launchd_services
 
     log INFO "Update completed successfully"
 }

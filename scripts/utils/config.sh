@@ -10,7 +10,7 @@
 # Configuration file location
 CONFIG_DIR="/etc/schoolcode"
 CONFIG_FILE="$CONFIG_DIR/schoolcode.conf"
-USER_CONFIG_FILE="$HOME/.schoolcode.conf"
+USER_CONFIG_FILE="${HOME:-/var/root}/.schoolcode.conf"
 
 # Default configuration values (bash 3.2 compatible)
 DEFAULT_SCHOOLCODE_TOOLS_DIR="/opt/schoolcode"

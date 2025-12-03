@@ -124,27 +124,8 @@ update_status() {
     # Status updates are logged but no longer write to marker file
     log_info "Status: $status - $message"
 }
-get_installer_ip() {
-    local ip=""
-    if command -v ifconfig &>/dev/null; then
-        ip=$(ifconfig | grep -E "inet [0-9]" | grep -v "127.0.0.1" | head -1 | awk '{print $2}' 2>/dev/null || echo "")
-    elif command -v ip &>/dev/null; then
-        ip=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' 2>/dev/null || echo "")
-    fi
-    if [[ -z "$ip" ]]; then
-        ip="127.0.0.1"
-    fi
-    echo "$ip"
-}
 
-update_status() {
-    local status="$1"
-    local message="${2:-}"
-    # Status updates are logged but no longer write to marker file
-    log_info "Status: $status - $message"
-}
-
-# Check if running as root (skip for help and logs)
+# Check if running as root
 check_root() {
     local cmd="${1:-}"
     # These commands don't require root

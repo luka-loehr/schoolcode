@@ -1562,6 +1562,11 @@ install_autoupdate_daemon() {
     </array>
     <key>WorkingDirectory</key>
     <string>$repo_path</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/var/root</string>
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>StartInterval</key>

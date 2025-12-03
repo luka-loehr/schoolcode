@@ -232,18 +232,35 @@ check_launchagent() {
         add_health_issue "Guest LaunchAgent missing at $plist_file"
         return 1
     fi
-
-    # Check if LaunchAgent is loaded
-    if launchctl list 2>/dev/null | grep -q "com.schoolcode.guestsetup"; then
-        set_health_status "launchagent" "healthy"
-        log_debug "LaunchAgent is loaded and running"
-        return 0
-    else
+    
+    # Check if the guest setup script exists and is executable
+    if [[ ! -x "/usr/local/bin/guest_setup_auto.sh" ]]; then
         set_health_status "launchagent" "degraded"
-        log_warn "LaunchAgent plist exists but not loaded"
-        add_health_issue "Guest LaunchAgent exists but is not loaded (com.schoolcode.guestsetup)"
+        log_warn "Guest setup script missing or not executable"
+        add_health_issue "Guest setup script missing at /usr/local/bin/guest_setup_auto.sh"
         return 2
     fi
+
+    # The Guest LaunchAgent is per-user and only loads when a user logs in.
+    # It's expected to NOT be loaded when checking from an admin session.
+    # We consider it healthy if:
+    #   1. The plist file exists
+    #   2. The guest setup script exists and is executable
+    # It will automatically load when Guest user logs in.
+    
+    # If running as Guest and it's loaded, report that
+    if [[ "$USER" == "Guest" ]]; then
+        if launchctl list 2>/dev/null | grep -q "com.schoolcode.guestsetup"; then
+            set_health_status "launchagent" "healthy"
+            log_debug "LaunchAgent is loaded for Guest user"
+            return 0
+        fi
+    fi
+    
+    # Otherwise, plist exists + script exists = healthy (will load on Guest login)
+    set_health_status "launchagent" "healthy"
+    log_debug "LaunchAgent configured correctly (loads on Guest login)"
+    return 0
 }
 
 # Function to check auto-update LaunchDaemon

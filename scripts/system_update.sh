@@ -98,26 +98,24 @@ reload_launchd_services() {
     local launchagent_plist="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
     local launchdaemon_plist="/Library/LaunchDaemons/com.schoolcode.autoupdate.plist"
     
-    # Unload and reload LaunchAgent if it exists
+    # LaunchAgent is per-user (loads on Guest login), we just verify the plist exists
+    # It cannot be reloaded from root/admin context - this is expected behavior
     if [[ -f "$launchagent_plist" ]]; then
-        if launchctl unload "$launchagent_plist" 2>/dev/null; then
-            echo "  ✓ LaunchAgent reloaded"
-        else
-            echo "  ⚠ LaunchAgent reload skipped (not loaded)"
-        fi
-        
-        launchctl load -w "$launchagent_plist" 2>/dev/null || true
+        echo "  ✓ LaunchAgent configured (loads on Guest login)"
+    else
+        echo "  ⚠ LaunchAgent plist missing"
     fi
     
-    # Unload and reload LaunchDaemon if it exists
+    # LaunchDaemon is system-wide, unload and reload it
     if [[ -f "$launchdaemon_plist" ]]; then
-        if launchctl unload "$launchdaemon_plist" 2>/dev/null; then
+        launchctl unload "$launchdaemon_plist" 2>/dev/null || true
+        if launchctl load -w "$launchdaemon_plist" 2>/dev/null; then
             echo "  ✓ LaunchDaemon reloaded"
         else
-            echo "  ⚠ LaunchDaemon reload skipped (not loaded)"
+            echo "  ⚠ LaunchDaemon reload failed"
         fi
-        
-        launchctl load -w "$launchdaemon_plist" 2>/dev/null || true
+    else
+        echo "  ⚠ LaunchDaemon plist missing"
     fi
 }
 
@@ -161,9 +159,8 @@ main() {
     run_install
     record_installed_version "$latest_version"
     
-    # Reload LaunchAgent and LaunchDaemon to apply updates
-    log INFO "Reloading LaunchAgent..."
-    log INFO "Reloading LaunchDaemon..."
+    # Reload services to apply updates
+    log INFO "Refreshing services..."
     reload_launchd_services
 
     echo ""

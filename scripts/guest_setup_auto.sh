@@ -26,13 +26,16 @@ fi
 SCHOOLCODE_DIR="/opt/schoolcode"
 GUEST_TOOLS_DIR="/Users/Guest/tools"
 
-# Always set up PATH to use SchoolCode tools directly (no copying)
+# Script version
+VERSION="1.0.0"
+
+# Display welcome banner
 clear
-CURRENT_YEAR=$(date +%Y)
-echo "╔══════════════════════════════════════╗"
-echo "║       SchoolCode Guest Session       ║"
-echo "║           © $CURRENT_YEAR Luka Löhr           ║"
-echo "╚══════════════════════════════════════╝"
+YEAR=$(date +%Y)
+echo "╔════════════════════════════════════════╗"
+echo "║            SchoolCode v$VERSION           ║"
+echo "║            © $YEAR Luka Löhr            ║"
+echo "╚════════════════════════════════════════╝"
 echo ""
 
 # Configure PATH for Guest: SchoolCode bin, official Python, user pip bin

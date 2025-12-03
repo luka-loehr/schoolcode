@@ -23,14 +23,12 @@ fi
 HEALTH_CHECK_FILE="/var/log/schoolcode/health-status.json"
 METRICS_FILE="/var/log/schoolcode/metrics.json"
 ALERTS_FILE="/var/log/schoolcode/alerts.log"
-AUTOUPDATE_PLIST="/Library/LaunchDaemons/com.schoolcode.autoupdate.plist"
 
 # Health check status variables (bash 3.2 compatible)
 HEALTH_OVERALL="unknown"
 HEALTH_ADMIN_TOOLS="unknown"
 HEALTH_GUEST_SETUP="unknown"
 HEALTH_LAUNCHAGENT="unknown"
-HEALTH_LAUNCHDAEMON="unknown"
 HEALTH_HOMEBREW="unknown"
 HEALTH_PERMISSIONS="unknown"
 HEALTH_DISK_SPACE="unknown"
@@ -72,7 +70,6 @@ set_health_status() {
         "schoolcode_tools") HEALTH_SCHOOLCODE_TOOLS="$status" ;;
         "guest_setup") HEALTH_GUEST_SETUP="$status" ;;
         "launchagent") HEALTH_LAUNCHAGENT="$status" ;;
-        "launchdaemon") HEALTH_LAUNCHDAEMON="$status" ;;
         "homebrew") HEALTH_HOMEBREW="$status" ;;
         "permissions") HEALTH_PERMISSIONS="$status" ;;
         "disk_space") HEALTH_DISK_SPACE="$status" ;;
@@ -88,7 +85,6 @@ get_health_status() {
         "schoolcode_tools") echo "$HEALTH_SCHOOLCODE_TOOLS" ;;
         "guest_setup") echo "$HEALTH_GUEST_SETUP" ;;
         "launchagent") echo "$HEALTH_LAUNCHAGENT" ;;
-        "launchdaemon") echo "$HEALTH_LAUNCHDAEMON" ;;
         "homebrew") echo "$HEALTH_HOMEBREW" ;;
         "permissions") echo "$HEALTH_PERMISSIONS" ;;
         "disk_space") echo "$HEALTH_DISK_SPACE" ;;
@@ -261,30 +257,6 @@ check_launchagent() {
     set_health_status "launchagent" "healthy"
     log_debug "LaunchAgent configured correctly (loads on Guest login)"
     return 0
-}
-
-# Function to check auto-update LaunchDaemon
-check_launchdaemon() {
-    local plist_file="$AUTOUPDATE_PLIST"
-    local label="com.schoolcode.autoupdate"
-
-    if [[ ! -f "$plist_file" ]]; then
-        set_health_status "launchdaemon" "unhealthy"
-        log_error "Auto-update LaunchDaemon plist missing: $plist_file"
-        add_health_issue "Auto-update LaunchDaemon missing at $plist_file"
-        return 1
-    fi
-
-    if launchctl list 2>/dev/null | grep -q "$label"; then
-        set_health_status "launchdaemon" "healthy"
-        log_debug "Auto-update LaunchDaemon is loaded"
-        return 0
-    else
-        set_health_status "launchdaemon" "degraded"
-        log_warn "Auto-update LaunchDaemon plist exists but not loaded"
-        add_health_issue "Auto-update LaunchDaemon exists but is not loaded ($label)"
-        return 2
-    fi
 }
 
 # Function to check Homebrew
@@ -526,7 +498,6 @@ run_health_checks() {
     check_disk_space; local disk_result=$?
     check_schoolcode_tools; local tools_result=$?
     check_launchagent; local agent_result=$?
-    check_launchdaemon; local daemon_result=$?
     check_homebrew; local brew_result=$?
     check_permissions; local perms_result=$?
     check_guest_setup; local guest_result=$?
@@ -580,7 +551,6 @@ save_health_status() {
     "schoolcode_tools": "$(get_health_status schoolcode_tools)",
     "guest_setup": "$(get_health_status guest_setup)",
     "launchagent": "$(get_health_status launchagent)",
-    "launchdaemon": "$(get_health_status launchdaemon)",
     "homebrew": "$(get_health_status homebrew)",
     "permissions": "$(get_health_status permissions)",
     "disk_space": "$(get_health_status disk_space)"
@@ -628,7 +598,7 @@ show_health_status() {
     
     # Component status - only show if degraded or unhealthy
     local has_issues=false
-    local components="schoolcode_tools guest_setup launchagent launchdaemon homebrew permissions disk_space"
+    local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
     for component in $components; do
         local status=$(get_health_status "$component")
         if [[ "$status" != "healthy" ]]; then
@@ -742,7 +712,7 @@ check_and_alert() {
     esac
     
     # Specific component alerts
-    local components="schoolcode_tools guest_setup launchagent launchdaemon homebrew permissions disk_space"
+    local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
     for component in $components; do
         local status=$(get_health_status "$component")
         case "$status" in

@@ -64,9 +64,6 @@ for plist in /Library/LaunchAgents/com.schoolcode.*.plist /Library/LaunchDaemons
     [ -f "$plist" ] && rm -f "$plist"
 done
 
-# Remove auto-update version tracking
-rm -f /Library/SchoolCode/.installedversion
-
 # Remove SchoolCode installation directory (wrappers, symlinks, configs)
 rm -rf /opt/schoolcode
 

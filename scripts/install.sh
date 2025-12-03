@@ -25,8 +25,6 @@ readonly SCRIPT_VERSION="3.0.0"
 readonly SCRIPT_NAME=$(basename "$0")
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-readonly SYSTEM_ROOT="/Library/SchoolCode"
-readonly INSTALLED_VERSION_FILE="${SYSTEM_ROOT}/.installedversion"
 
 # Installation paths
 INSTALL_PREFIX="/opt/schoolcode"
@@ -35,7 +33,6 @@ readonly CONFIG_DIR="${INSTALL_PREFIX}/config"
 readonly LOG_DIR="/var/log/schoolcode"
 readonly BACKUP_DIR="/var/backups/schoolcode"
 readonly TEMP_DIR="/tmp/schoolcode_install_$$"
-readonly AUTOUPDATE_PLIST="/Library/LaunchDaemons/com.schoolcode.autoupdate.plist"
 
 # System requirements
 readonly MIN_DISK_SPACE_MB=2048
@@ -171,28 +168,6 @@ complete_progress() {
     if [[ "$QUIET" != "true" ]]; then
         echo -e " ${GREEN}Done!${NC}"
     fi
-}
-
-get_project_version() {
-    if [[ -f "$INSTALLED_VERSION_FILE" ]]; then
-        local version
-        version=$(head -1 "$INSTALLED_VERSION_FILE" 2>/dev/null | tr -d '\r\n')
-        if [[ -n "$version" ]]; then
-            echo "$version"
-            return
-        fi
-    fi
-
-    echo "$SCRIPT_VERSION"
-}
-
-persist_installed_version() {
-    local version
-    version=$(get_project_version)
-
-    mkdir -p "$SYSTEM_ROOT"
-    echo "$version" > "$INSTALLED_VERSION_FILE"
-    log INFO "Recorded installed release version: $version"
 }
 
 #############################################
@@ -1525,72 +1500,6 @@ EOF
     log DEBUG "Guest configuration created"
 }
 
-# Install and load the auto-update LaunchDaemon
-install_autoupdate_daemon() {
-    log INFO "Installing auto-update LaunchDaemon..."
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log INFO "Dry run enabled - skipping LaunchDaemon installation"
-        return 0
-    fi
-
-    local plist_dir="$(dirname "$AUTOUPDATE_PLIST")"
-    local repo_path="$(cd "$PROJECT_ROOT" && pwd)"
-    local update_script="$repo_path/scripts/system_update.sh"
-
-    if [[ ! -f "$update_script" ]]; then
-        log ERROR "Update script not found at $update_script"
-        return 1
-    fi
-
-    mkdir -p "$plist_dir" "$LOG_DIR" 2>/dev/null || true
-    chmod +x "$update_script" 2>/dev/null || true
-
-    # Rebuild plist to ensure the repo path matches the installed location
-    launchctl unload "$AUTOUPDATE_PLIST" 2>/dev/null || true
-
-    cat > "$AUTOUPDATE_PLIST" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.schoolcode.autoupdate</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$update_script</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>$repo_path</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>HOME</key>
-        <string>/var/root</string>
-    </dict>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>StartInterval</key>
-    <integer>1800</integer>
-    <key>StandardOutPath</key>
-    <string>$LOG_DIR/daemon_update.out</string>
-    <key>StandardErrorPath</key>
-    <string>$LOG_DIR/daemon_update.err</string>
-</dict>
-</plist>
-EOF
-
-    chmod 644 "$AUTOUPDATE_PLIST" 2>/dev/null || true
-    chown root:wheel "$AUTOUPDATE_PLIST" 2>/dev/null || true
-
-    if launchctl load -w "$AUTOUPDATE_PLIST" 2>/dev/null; then
-        log SUCCESS "Auto-update daemon installed and loaded"
-        return 0
-    else
-        log ERROR "Failed to load auto-update LaunchDaemon"
-        return 1
-    fi
-}
-
 #############################################
 # VERIFICATION FUNCTIONS
 #############################################
@@ -1736,17 +1645,6 @@ main() {
     
     # Configure PATH for users
     configure_user_path
-
-    # Install auto-update daemon
-    install_autoupdate_daemon || {
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Auto-update daemon setup failed" >> "$LOG_FILE" 2>/dev/null || true
-        exit 1
-    }
-
-    # Persist installed version for auto-update daemon
-    if [[ "$DRY_RUN" != "true" ]]; then
-        persist_installed_version
-    fi
 
     # Mark installation as complete
     INSTALLATION_COMPLETE=true

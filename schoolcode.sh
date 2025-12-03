@@ -10,22 +10,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
-# Fetch version from GitHub releases (with fallback)
-get_version() {
-    local version="0.0.0"  # Fallback version
-    
-    # Try to fetch latest release from GitHub
-    if command -v curl &>/dev/null; then
-        local github_version=$(curl -s --connect-timeout 2 "https://api.github.com/repos/luka-loehr/schoolcode/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
-        if [[ -n "$github_version" ]] && [[ "$github_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            version="$github_version"
-        fi
-    fi
-    
-    echo "$version"
-}
-
-SCRIPT_VERSION=$(get_version)
+# Script version
+readonly SCRIPT_VERSION="1.0.0"
 
 # Source utility libraries
 source "$SCRIPT_DIR/scripts/utils/logging.sh"
@@ -94,15 +80,8 @@ print_header() {
 
 # Status reporting functions
 get_schoolcode_version() {
-    local version="latest"
-    local installed_version_file="/Library/SchoolCode/.installedversion"
-    if [[ -f "$installed_version_file" ]]; then
-        local file_version=$(head -1 "$installed_version_file" 2>/dev/null | tr -d '\n\r')
-        if [[ -n "$file_version" ]]; then
-            version="$file_version"
-        fi
-    fi
-    echo "$version"
+    # Return the script version
+    echo "$SCRIPT_VERSION"
 }
 
 get_installer_ip() {

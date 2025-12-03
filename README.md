@@ -44,7 +44,7 @@ The installer now writes and loads the auto-update LaunchDaemon automatically, s
 If you need to reinstall it manually, use:
 
 ```bash
-sudo cp SchoolCode_launchagents/com.schoolcode.autoupdate.plist /Library/LaunchDaemons/
+sudo cp launchd/com.schoolcode.autoupdate.plist /Library/LaunchDaemons/
 sudo chown root:wheel /Library/LaunchDaemons/com.schoolcode.autoupdate.plist
 sudo launchctl load -w /Library/LaunchDaemons/com.schoolcode.autoupdate.plist
 ```

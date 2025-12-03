@@ -25,6 +25,8 @@ readonly SCRIPT_VERSION="3.0.0"
 readonly SCRIPT_NAME=$(basename "$0")
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+readonly SYSTEM_ROOT="/Library/SchoolCode"
+readonly INSTALLED_VERSION_FILE="${SYSTEM_ROOT}/.installedversion"
 
 # Installation paths
 INSTALL_PREFIX="/opt/schoolcode"
@@ -168,6 +170,30 @@ complete_progress() {
     if [[ "$QUIET" != "true" ]]; then
         echo -e " ${GREEN}Done!${NC}"
     fi
+}
+
+get_project_version() {
+    local version_file="$PROJECT_ROOT/version.txt"
+
+    if [[ -f "$version_file" ]]; then
+        local version
+        version=$(head -1 "$version_file" 2>/dev/null | tr -d '\r\n')
+        if [[ -n "$version" ]]; then
+            echo "$version"
+            return
+        fi
+    fi
+
+    echo "$SCRIPT_VERSION"
+}
+
+persist_installed_version() {
+    local version
+    version=$(get_project_version)
+
+    mkdir -p "$SYSTEM_ROOT"
+    echo "$version" > "$INSTALLED_VERSION_FILE"
+    log INFO "Recorded installed release version: $version"
 }
 
 #############################################
@@ -1650,7 +1676,12 @@ main() {
     
     # Configure PATH for users
     configure_user_path
-    
+
+    # Persist installed version for auto-update daemon
+    if [[ "$DRY_RUN" != "true" ]]; then
+        persist_installed_version
+    fi
+
     # Mark installation as complete
     INSTALLATION_COMPLETE=true
     

@@ -20,9 +20,10 @@ SchoolCode automates setup of a complete development environment for students on
 ## Quick Start
 
 ```bash
-# Clone and install
-git clone https://github.com/luka-loehr/schoolcode.git
-cd schoolcode
+# Clone and install into the system path used by the auto-update daemon
+sudo mkdir -p /Library/SchoolCode
+sudo git clone https://github.com/luka-loehr/schoolcode.git /Library/SchoolCode/repo
+cd /Library/SchoolCode/repo
 sudo ./schoolcode.sh
 ```
 
@@ -30,6 +31,23 @@ Verify installation:
 ```bash
 sudo ./schoolcode.sh --status
 ```
+
+## System location and release tracking
+
+- The auto-update daemon expects the repository at `/Library/SchoolCode/repo`. Install from that path so the update script and LaunchDaemon can reach the git checkout without user logins.
+- The installer records the last installed release in `/Library/SchoolCode/.installedversion` so updates only trigger when a newer tagged release is available. The file lives outside the git working copy, so hard resets will not remove it.
+
+## Auto-update LaunchDaemon
+
+Use the provided daemon to keep SchoolCode aligned with the latest tagged release (not just the latest commit):
+
+```bash
+sudo cp SchoolCode_launchagents/com.schoolcode.autoupdate.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/com.schoolcode.autoupdate.plist
+sudo launchctl load -w /Library/LaunchDaemons/com.schoolcode.autoupdate.plist
+```
+
+The daemon runs `/Library/SchoolCode/repo/scripts/system_update.sh`, checks GitHub releases, and only performs a `git reset --hard` when a newer release tag exists. Update logs live in `/var/log/schoolcode/daemon_update.log`.
 
 ## Basic Commands
 

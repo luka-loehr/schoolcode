@@ -1,440 +1,289 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# SchoolCode Hub - Central Management Interface
-# Unified script for all SchoolCode operations
-
 set -euo pipefail
 
-# Script metadata
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR"
-
-# Script version
 readonly SCRIPT_VERSION="3.0.0"
 
-# Source utility libraries
 source "$SCRIPT_DIR/scripts/utils/logging.sh"
+source "$SCRIPT_DIR/scripts/utils/ui.sh"
+CURRENT_LOG_LEVEL=999
 
-# Only source config.sh if not showing help (to avoid permission issues)
-if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+if [[ "${1:-}" != "--help" ]] && [[ "${1:-}" != "-h" ]]; then
     source "$SCRIPT_DIR/scripts/utils/config.sh"
 fi
 
-# Create convenience aliases for logging functions - consolidate approach
-print_error() {
-    if declare -f log_error >/dev/null 2>&1; then
-        log_error "$@"
-    else
-        echo -e "${ERROR}[ERROR]${NC} $@" >&2
-    fi
-}
-
-print_info() {
-    if declare -f log_info >/dev/null 2>&1; then
-        log_info "$@"
-    else
-        echo -e "${INFO}[INFO]${NC} $@"
-    fi
-}
-
-print_warning() {
-    if declare -f log_warn >/dev/null 2>&1; then
-        log_warn "$@"
-    else
-        echo -e "${WARNING}[WARN]${NC} $@" >&2
-    fi
-}
-
-# Color codes for output
-HEADER='\033[1;34m'
-SUCCESS='\033[0;32m'
-WARNING='\033[1;33m'
-ERROR='\033[0;31m'
-INFO='\033[0;36m'
-DIM='\033[2m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-# Shared terminal framing
-print_box() {
-    local title="$1"
-    local color="${2:-$HEADER}"
-    local width=56
-
-    echo ""
-    printf "%b" "$color"
-    printf "╭"
-    printf '─%.0s' $(seq 1 $((width-2)))
-    printf "╮\n"
-
-    local padding=$(( (width - 2 - ${#title}) / 2 ))
-    printf "│"
-    printf ' %.0s' $(seq 1 $padding)
-    printf "%s" "$title"
-    printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#title})))
-    printf "│\n"
-    
-    printf "╰"
-    printf '─%.0s' $(seq 1 $((width-2)))
-    printf "╯${NC}\n"
-}
-
-# Premium header
-print_header() {
-    print_box "SchoolCode v$SCRIPT_VERSION" "$HEADER"
-}
-
-# Status reporting functions
-get_schoolcode_version() {
-    # Return the script version
-    echo "$SCRIPT_VERSION"
-}
-
-get_installer_ip() {
-    local ip=""
-    if command -v ifconfig &>/dev/null; then
-        ip=$(ifconfig | grep -E "inet [0-9]" | grep -v "127.0.0.1" | head -1 | awk '{print $2}' 2>/dev/null || echo "")
-    elif command -v ip &>/dev/null; then
-        ip=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' 2>/dev/null || echo "")
-    fi
-    if [[ -z "$ip" ]]; then
-        ip="127.0.0.1"
-    fi
-    echo "$ip"
-}
-
-update_status() {
+write_status_log() {
     local status="$1"
     local message="${2:-}"
-    # Status updates are logged but no longer write to marker file
-    log_info "Status: $status - $message"
+    log_silent "INFO" "[$status] $message"
 }
 
-# Check if running as root
 check_root() {
-    local cmd="${1:-}"
-    # These commands don't require root
-    if [ "$EUID" -ne 0 ] && [ "$cmd" != "--help" ] && [ "$cmd" != "-h" ] && [ "$cmd" != "--logs" ] && [ "$cmd" != "-l" ]; then
-        print_error "This script must be run as root (use sudo)"
+    local command="${1:-}"
+    case "$command" in
+        --help|-h|--logs|-l)
+            return 0
+            ;;
+    esac
+
+    if [[ $EUID -ne 0 ]]; then
+        ui_status fail "This command requires sudo."
         exit 1
     fi
 }
 
-# Simple progress display (no background processes)
-show_progress() {
-    printf "  %-8s %s\n" "[RUN]" "$1"
+extract_install_failure_reason() {
+    local error_log="$1"
+    local first_error=""
+
+    if [[ ! -s "$error_log" ]]; then
+        return 0
+    fi
+
+    first_error="$(grep -E '\[ERROR\]|Installation failed' "$error_log" | head -1 || true)"
+    if [[ -z "$first_error" ]]; then
+        first_error="$(grep -v '^[[:space:]]*$' "$error_log" | head -1 || true)"
+    fi
+
+    first_error="${first_error#\[ERROR\] }"
+    printf '%s' "$first_error"
 }
 
-show_result() {
-    local result="$1"
-    local msg="${2:-}"
-    case "$result" in
-        success) printf "  %-8s %s\n" "[OK]" "$msg" ;;
-        error)   printf "  %-8s %s\n" "[FAIL]" "$msg" ;;
-        warning) printf "  %-8s %s\n" "[WARN]" "$msg" ;;
-    esac
+latest_install_log() {
+    ls -t /var/log/schoolcode/install_*.log 2>/dev/null | head -1 || true
 }
 
-# Run compatibility check
 do_compatibility_check() {
-    show_progress "Checking system compatibility"
-    
-    # Source compatibility script to get access to its functions (in quiet mode)
+    ui_status run "Checking system compatibility"
     export SCHOOLCODE_QUIET=true
     source "$SCRIPT_DIR/scripts/utils/old_mac_compatibility.sh"
-    run_compatibility_check  # This calls the function from old_mac_compatibility.sh
-    
-    local errors=$(get_compatibility_errors)
-    local warnings=$(get_compatibility_warnings)
-    
-    if [[ $errors -gt 0 ]]; then
-        show_result "error" "System compatibility check failed"
-        printf "\n  ${ERROR}Issues found:${NC}\n"
+    run_compatibility_check
+
+    local errors warnings
+    errors="$(get_compatibility_errors)"
+    warnings="$(get_compatibility_warnings)"
+
+    if [[ "$errors" -gt 0 ]]; then
+        ui_status fail "System compatibility check failed"
+        local issues=()
         while IFS= read -r issue; do
-            [[ -n "$issue" ]] && printf "    ${DIM}• %s${NC}\n" "$issue"
+            [[ -n "$issue" ]] && issues+=("$issue")
         done < <(get_compatibility_issues)
+        if [[ ${#issues[@]} -gt 0 ]]; then
+            ui_section "Issues"
+            ui_list fail "${issues[@]}"
+        fi
         return 1
-    elif [[ $warnings -gt 0 ]]; then
-        show_result "warning" "System compatible ($warnings warnings)"
-        return 0
+    fi
+
+    if [[ "$warnings" -gt 0 ]]; then
+        ui_status warn "System compatible with $warnings warning(s)"
     else
-        show_result "success" "System compatible"
-        return 0
+        ui_status ok "System compatible"
     fi
 }
 
-# Run system repair
 do_system_repair() {
-    show_progress "Preparing system"
-    
-    # Source repair script to get access to its functions (in quiet mode)
+    ui_status run "Preparing the system"
     export SCHOOLCODE_QUIET=true
     source "$SCRIPT_DIR/scripts/utils/system_repair.sh"
-    run_system_repairs  # This calls the function from system_repair.sh
-    
-    local repairs=$(get_repairs_performed)
-    
-    if [[ $repairs -gt 0 ]]; then
-        show_result "success" "System prepared ($repairs fixes applied)"
+    run_system_repairs
+
+    local repairs
+    repairs="$(get_repairs_performed)"
+    if [[ "$repairs" -gt 0 ]]; then
+        ui_status ok "System prepared with $repairs fix(es)"
     else
-        show_result "success" "System ready"
+        ui_status ok "System ready"
     fi
-    return 0
 }
 
-# Install tools
 do_install_tools() {
-    show_progress "Installing development tools"
-    
-    # Create temporary file for error capture
-    local error_log="/tmp/schoolcode_install_error_$$.log"
-    
-    # Run install script with quiet mode and capture all emitted output so the
-    # top-level UI can present a single concise failure summary.
-    if SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/install.sh" -q >"$error_log" 2>&1; then
-        show_result "success" "Development tools installed"
-        rm -f "$error_log"
-        return 0
-    else
-        local exit_code=$?
-        show_result "error" "Tool installation failed"
-        
-        # Show the first relevant failure reason instead of replaying the
-        # installer's entire log stream.
-        if [[ -s "$error_log" ]]; then
-            local first_error=""
-            first_error=$(grep -E '\[ERROR\]|Installation failed' "$error_log" | head -1 || true)
-            if [[ -z "$first_error" ]]; then
-                first_error=$(grep -v '^[[:space:]]*$' "$error_log" | head -1 || true)
-            fi
+    ui_status run "Installing development tools"
 
-            if [[ -n "$first_error" ]]; then
-                first_error="${first_error#\[ERROR\] }"
-                printf "\n  ${DIM}Reason:${NC} %s\n" "$first_error"
-            fi
-        fi
-        
-        # Show latest install log file
-        local latest_log=$(ls -t /var/log/schoolcode/install_*.log 2>/dev/null | head -1)
-        if [[ -n "$latest_log" ]]; then
-            printf "\n  ${DIM}See full log: %s${NC}\n" "$latest_log"
-        fi
-        
-        rm -f "$error_log"
-        return "$exit_code"
+    local capture_file
+    capture_file="/tmp/schoolcode_install_capture_$$.log"
+
+    if SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/install.sh" -q >"$capture_file" 2>&1; then
+        ui_status ok "Development tools installed"
+        rm -f "$capture_file"
+        return 0
     fi
+
+    local exit_code=$?
+    local reason log_path
+    reason="$(extract_install_failure_reason "$capture_file")"
+    log_path="$(latest_install_log)"
+
+    ui_status fail "Installation stopped"
+    ui_error_summary "Installation failed" "$reason" "$log_path"
+
+    rm -f "$capture_file"
+    return "$exit_code"
 }
 
-# Show system status
 show_status() {
-    log_operation_start "STATUS" "Health check"
-    print_info "Checking system status..."
-    "$SCRIPT_DIR/scripts/schoolcode-cli.sh" status detailed
-    log_operation_end "STATUS" "SUCCESS"
+    SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/utils/monitoring.sh" detailed
 }
 
-# Uninstall SchoolCode (interactive)
-uninstall_schoolcode() {
-    print_warning "This will remove SchoolCode and all installed tools from Guest accounts."
-    read -p "Are you sure you want to continue? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Uninstalling SchoolCode..."
-        "$SCRIPT_DIR/scripts/schoolcode-cli.sh" uninstall
+print_log_contents() {
+    local path="$1"
+    local lines="$2"
+
+    if [[ -f "$path" ]]; then
+        tail -n "$lines" "$path"
     else
-        print_info "Uninstall cancelled."
+        printf 'No log file found at %s\n' "$path"
     fi
 }
 
-# Uninstall SchoolCode (non-interactive)
-uninstall_schoolcode_noninteractive() {
-    echo "Removing SchoolCode..."
-    if "$SCRIPT_DIR/scripts/schoolcode-cli.sh" --force uninstall; then
-        return 0
-    else
-        echo "Uninstallation failed."
-        return 1
-    fi
-}
-
-# Show logs - comprehensive log viewing utility
 show_logs() {
     local subcommand="${1:-}"
     local lines="${2:-50}"
-    
+
     case "$subcommand" in
         errors|error)
-            echo "${BOLD}=== Error Logs (last $lines) ===${NC}"
-            if [[ -f "/var/log/schoolcode/schoolcode-error.log" ]]; then
-                tail -n "$lines" /var/log/schoolcode/schoolcode-error.log
-            else
-                echo "No error logs found"
-            fi
+            ui_header "SchoolCode Logs" "Recent errors"
+            print_log_contents "/var/log/schoolcode/schoolcode-error.log" "$lines"
             ;;
         warnings|warn)
-            echo "${BOLD}=== Warning Logs (last $lines) ===${NC}"
+            ui_header "SchoolCode Logs" "Recent warnings"
             if [[ -f "/var/log/schoolcode/schoolcode.log" ]]; then
                 grep "\[WARN\]" /var/log/schoolcode/schoolcode.log | tail -n "$lines"
             else
-                echo "No logs found"
+                printf 'No SchoolCode log file found.\n'
             fi
             ;;
         install)
-            echo "${BOLD}=== Latest Install Log ===${NC}"
-            local latest_install=$(ls -t /var/log/schoolcode/install_*.log 2>/dev/null | head -1)
-            if [[ -n "$latest_install" ]]; then
-                echo "File: $latest_install"
-                echo ""
-                tail -n "$lines" "$latest_install"
+            ui_header "SchoolCode Logs" "Latest install log"
+            local latest
+            latest="$(latest_install_log)"
+            if [[ -n "$latest" ]]; then
+                printf 'File: %s\n\n' "$latest"
+                tail -n "$lines" "$latest"
             else
-                echo "No install logs found"
+                printf 'No install log found.\n'
             fi
             ;;
         guest)
-            echo "${BOLD}=== Guest Setup Logs (last $lines) ===${NC}"
-            if [[ -f "/var/log/schoolcode/guest-setup.log" ]]; then
-                tail -n "$lines" /var/log/schoolcode/guest-setup.log
-            else
-                echo "No guest logs found"
-            fi
+            ui_header "SchoolCode Logs" "Guest setup log"
+            print_log_contents "/var/log/schoolcode/guest-setup.log" "$lines"
             ;;
         today)
-            echo "${BOLD}=== Today's Logs ===${NC}"
-            local today=$(date '+%Y-%m-%d')
+            ui_header "SchoolCode Logs" "Today"
+            local today
+            today="$(date '+%Y-%m-%d')"
             if [[ -f "/var/log/schoolcode/schoolcode.log" ]]; then
                 grep "$today" /var/log/schoolcode/schoolcode.log | tail -n "$lines"
             else
-                echo "No logs found"
+                printf 'No SchoolCode log file found.\n'
             fi
             ;;
         events)
-            echo "${BOLD}=== Structured Events (JSON) ===${NC}"
-            if [[ -f "/var/log/schoolcode/events.json" ]]; then
-                cat /var/log/schoolcode/events.json
-            else
-                echo "No events logged"
-            fi
+            cat /var/log/schoolcode/events.json 2>/dev/null || printf '[]\n'
             ;;
         metrics)
-            echo "${BOLD}=== Performance Metrics (JSON) ===${NC}"
-            if [[ -f "/var/log/schoolcode/metrics.json" ]]; then
-                cat /var/log/schoolcode/metrics.json
-            else
-                echo "No metrics logged"
-            fi
+            cat /var/log/schoolcode/metrics.json 2>/dev/null || printf '[]\n'
             ;;
         tail)
-            echo "${BOLD}=== Tail Main Log (last $lines) ===${NC}"
-            if [[ -f "/var/log/schoolcode/schoolcode.log" ]]; then
-                tail -n "$lines" /var/log/schoolcode/schoolcode.log
-            else
-                echo "No logs found"
-            fi
+            ui_header "SchoolCode Logs" "Recent activity"
+            print_log_contents "/var/log/schoolcode/schoolcode.log" "$lines"
             ;;
         all|"")
-            echo "${BOLD}SchoolCode Log Viewer${NC}"
-            echo ""
-            echo "${BOLD}Usage:${NC} ./schoolcode.sh --logs [TYPE] [LINES]"
-            echo ""
-            echo "${BOLD}Log Types:${NC}"
-            echo "  errors    - Show only error logs"
-            echo "  warnings  - Show only warning logs"
-            echo "  install   - Show latest installation log"
-            echo "  guest     - Show guest setup logs"
-            echo "  today     - Show today's logs"
-            echo "  events    - Show structured events (JSON)"
-            echo "  metrics   - Show performance metrics (JSON)"
-            echo "  tail      - Show recent main log entries"
-            echo ""
-            echo "${BOLD}Examples:${NC}"
-            echo "  ./schoolcode.sh --logs errors 100"
-            echo "  ./schoolcode.sh --logs install"
-            echo "  ./schoolcode.sh --logs tail 200"
+            ui_header "SchoolCode v$SCRIPT_VERSION" "Log viewer"
+            ui_section "Usage"
+            ui_list info \
+                "./schoolcode.sh --logs errors 100" \
+                "./schoolcode.sh --logs install" \
+                "./schoolcode.sh --logs tail 200"
+            ui_section "Log types"
+            ui_list info \
+                "errors" \
+                "warnings" \
+                "install" \
+                "guest" \
+                "today" \
+                "events" \
+                "metrics" \
+                "tail"
             ;;
         *)
-            print_error "Unknown log type: $subcommand"
-            echo "Run './schoolcode.sh --logs' for usage"
+            ui_status fail "Unknown log type: $subcommand"
             exit 1
             ;;
     esac
 }
 
+uninstall_schoolcode_noninteractive() {
+    ui_header "SchoolCode v$SCRIPT_VERSION" "Uninstall"
+    ui_status run "Removing SchoolCode"
+    if "$SCRIPT_DIR/scripts/schoolcode-cli.sh" --force uninstall; then
+        ui_status ok "SchoolCode removed"
+        return 0
+    fi
 
+    ui_status fail "Uninstall failed"
+    return 1
+}
 
-# Automatic mode (no flags) - runs full installation
 automatic_mode() {
-    print_header
-    echo ""
-    
-    log_operation_start "INSTALL" "SchoolCode v$SCRIPT_VERSION"
-    
-    # Run full installation sequence
+    ui_header "SchoolCode v$SCRIPT_VERSION" "Shared Mac development environment"
+
     local failed=false
-    
-    do_compatibility_check || failed=true
-    
-    if [[ "$failed" != "true" ]]; then
-        do_system_repair || failed=true
+
+    if ! do_compatibility_check; then
+        failed=true
     fi
-    
-    if [[ "$failed" != "true" ]]; then
-        do_install_tools || failed=true
+
+    if [[ "$failed" == "false" ]] && ! do_system_repair; then
+        failed=true
     fi
-    
-    echo ""
-    
-    if [[ "$failed" != "true" ]]; then
-        print_box "Installation Complete" "$SUCCESS"
-        
-        update_status "ready" "SchoolCode installation completed successfully"
-        log_operation_end "INSTALL" "SUCCESS"
-        echo ""
-        printf "  ${DIM}Next steps:${NC}\n"
-        printf "    • Switch to Guest account to test\n"
-        printf "    • Run ${BOLD}./schoolcode.sh --status${NC} to verify\n"
-    else
-        print_box "Installation Failed" "$ERROR"
-        
-        update_status "error" "SchoolCode installation failed"
-        log_operation_end "INSTALL" "FAILED"
-        echo ""
-        printf "  ${DIM}Check logs: /var/log/schoolcode/${NC}\n"
+
+    if [[ "$failed" == "false" ]] && ! do_install_tools; then
+        failed=true
+    fi
+
+    if [[ "$failed" == "true" ]]; then
+        write_status_log "error" "SchoolCode installation failed"
         exit 1
     fi
+
+    write_status_log "ready" "SchoolCode installation completed successfully"
+    ui_summary "Installation complete" "SchoolCode is ready to test on the Guest account." "ok"
+    ui_section "Next steps"
+    ui_list info \
+        "Log into the Guest account and open Terminal." \
+        "Run sudo ./schoolcode.sh --status to verify the install."
 }
 
-# Help function
 show_help() {
-    print_header
-    echo ""
-    printf "  ${BOLD}Usage:${NC}\n"
-    printf "    sudo ./schoolcode.sh              ${DIM}Install everything${NC}\n"
-    printf "    sudo ./schoolcode.sh --interactive ${DIM}Compatibility alias for guided install${NC}\n"
-    printf "    sudo ./schoolcode.sh --uninstall  ${DIM}Remove SchoolCode${NC}\n"
-    printf "    sudo ./schoolcode.sh --status     ${DIM}Show system status${NC}\n"
-    printf "    sudo ./schoolcode.sh --logs       ${DIM}View logs${NC}\n"
-    printf "    sudo ./schoolcode.sh --help       ${DIM}Show this help${NC}\n"
-    echo ""
-    printf "  ${BOLD}Log Viewer:${NC}\n"
-    printf "    ./schoolcode.sh --logs [type] [lines]\n"
-    printf "    ${DIM}Types: errors, warnings, install, guest, today, events, metrics, tail${NC}\n"
-    echo ""
+    ui_header "SchoolCode v$SCRIPT_VERSION" "Admin interface"
+    ui_section "Commands"
+    ui_list info \
+        "sudo ./schoolcode.sh               Install everything" \
+        "sudo ./schoolcode.sh --install     Install everything explicitly" \
+        "sudo ./schoolcode.sh --uninstall   Remove SchoolCode" \
+        "sudo ./schoolcode.sh --status      Show system status" \
+        "./schoolcode.sh --logs             View logs" \
+        "./schoolcode.sh --help             Show help"
+    ui_section "Log viewer"
+    ui_list info \
+        "./schoolcode.sh --logs errors 100" \
+        "./schoolcode.sh --logs install" \
+        "./schoolcode.sh --logs tail 200"
 }
 
-# Main script logic
 main() {
-    # Check if running as root (skip for help)
+    ui_require_runtime
     check_root "${1:-}"
-    
-    # Parse command line arguments
+
     case "${1:-}" in
-        --install)
-            # Explicit installation mode (same as no flags)
+        --install|--interactive|"")
             automatic_mode
             ;;
         --uninstall)
-            # Non-interactive uninstall mode
             uninstall_schoolcode_noninteractive
             ;;
         --status|-s)
@@ -446,21 +295,13 @@ main() {
         --help|-h)
             show_help
             ;;
-        --interactive)
-            automatic_mode
-            ;;
-        "")
-            # No arguments - run automatic mode
-            automatic_mode
-            ;;
         *)
-            print_error "Unknown option: $1"
-            echo ""
+            ui_status fail "Unknown option: $1"
+            printf '\n'
             show_help
             exit 1
             ;;
     esac
 }
 
-# Run main function
 main "$@"

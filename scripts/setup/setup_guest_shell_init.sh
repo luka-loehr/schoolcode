@@ -27,11 +27,11 @@ log_msg() {
 }
 
 log_operation_start "GUEST_SETUP" "Configuring Guest shell initialization"
-log_msg "🔧 Setting up Guest shell initialization..."
+log_msg "Setting up Guest shell initialization..."
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
-    echo "❌ Please run with sudo" >&2
+    echo "Please run with sudo" >&2
     exit 1
 fi
 

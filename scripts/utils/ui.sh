@@ -1,8 +1,6 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-set -euo pipefail
-
 UI_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$UI_SCRIPT_DIR/gum.sh"
 

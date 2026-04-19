@@ -8,6 +8,8 @@
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 [[ -f "$SCRIPT_DIR/logging.sh" ]] && source "$SCRIPT_DIR/logging.sh"
 [[ -f "$SCRIPT_DIR/config.sh" ]] && source "$SCRIPT_DIR/config.sh"
+[[ -f "$SCRIPT_DIR/ui.sh" ]] && source "$SCRIPT_DIR/ui.sh"
+CURRENT_LOG_LEVEL=999
 
 # Ensure Homebrew is in PATH for root users
 if [[ $EUID -eq 0 ]]; then
@@ -72,9 +74,9 @@ add_health_issue() {
     local message="$1"
 
     if [[ -z "$HEALTH_ISSUES" ]]; then
-        HEALTH_ISSUES="• $message"
+        HEALTH_ISSUES="$message"
     else
-        HEALTH_ISSUES="$HEALTH_ISSUES\n• $message"
+        HEALTH_ISSUES="$HEALTH_ISSUES\n$message"
     fi
 }
 
@@ -107,17 +109,6 @@ get_health_status() {
         "permissions") echo "$HEALTH_PERMISSIONS" ;;
         "disk_space") echo "$HEALTH_DISK_SPACE" ;;
         *) echo "unknown" ;;
-    esac
-}
-
-# Function to get status color
-get_status_color() {
-    case "$1" in
-        "healthy") echo '\033[0;32m' ;;
-        "degraded") echo '\033[1;33m' ;;
-        "unhealthy") echo '\033[0;31m' ;;
-        "unknown") echo '\033[0;37m' ;;
-        *) echo '\033[0m' ;;
     esac
 }
 
@@ -596,89 +587,78 @@ EOF
 show_health_status() {
     local show_details="${1:-false}"
 
-    print_status_box() {
-        local title="$1"
-        local width=56
-        echo ""
-        printf "╭"
-        printf '─%.0s' $(seq 1 $((width-2)))
-        printf "╮\n"
-        local padding=$(( (width - 2 - ${#title}) / 2 ))
-        printf "│"
-        printf ' %.0s' $(seq 1 $padding)
-        printf "%s" "$title"
-        printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#title})))
-        printf "│\n"
-        printf "╰"
-        printf '─%.0s' $(seq 1 $((width-2)))
-        printf "╯\n"
-    }
+    ui_header "SchoolCode System Status" "Health overview"
 
-    echo ""
-    print_status_box "SchoolCode System Status"
-    echo ""
-
-    local overall_status=$(get_health_status "overall")
-    local overall_label="[OK]"
+    local overall_status
+    overall_status="$(get_health_status "overall")"
     case "$overall_status" in
-        "degraded") overall_label="[WARN]" ;;
-        "unhealthy") overall_label="[FAIL]" ;;
+        healthy) ui_status ok "Overall status: HEALTHY" ;;
+        degraded) ui_status warn "Overall status: DEGRADED" ;;
+        *) ui_status fail "Overall status: UNHEALTHY" ;;
     esac
-    local overall_upper=$(to_upper "$overall_status")
-    echo "  Status: $overall_label $overall_upper"
-    echo ""
-    
-    # Component status - only show if degraded or unhealthy
-    local has_issues=false
+
     local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
+    local component_rows=()
+    local component
     for component in $components; do
-        local status=$(get_health_status "$component")
-        if [[ "$status" != "healthy" ]]; then
-            has_issues=true
-            break
+        local status
+        status="$(get_health_status "$component")"
+        if [[ "$show_details" == "true" ]] || [[ "$status" != "healthy" ]]; then
+            component_rows+=("$(echo "$component" | sed 's/_/ /g'): $(to_upper "$status")")
         fi
     done
-    
-    if [[ "$has_issues" == "true" ]] || [[ "$show_details" == "true" ]]; then
-        echo "  Components:"
-        for component in $components; do
-            local status=$(get_health_status "$component")
-            local label="[OK]"
-            
-            case "$status" in
-                "degraded") label="[WARN]" ;;
-                "unhealthy") label="[FAIL]" ;;
-            esac
-            
-            # Only show non-healthy components in brief mode
-            if [[ "$show_details" == "true" ]] || [[ "$status" != "healthy" ]]; then
-                local display_name=$(echo "$component" | sed 's/_/ /g')
-                printf "    %-20s %s\n" "$display_name" "$label"
-            fi
-        done
-        echo ""
+
+    if [[ ${#component_rows[@]} -gt 0 ]]; then
+        ui_section "Components"
+        ui_list info "${component_rows[@]}"
     fi
 
     if [[ -n "$HEALTH_ISSUES" ]]; then
-        echo "  Issues:"
-        printf "    %b\n" "$HEALTH_ISSUES"
-        echo ""
+        ui_section "Issues"
+        local issues=()
+        while IFS= read -r issue; do
+            [[ -n "$issue" ]] && issues+=("$issue")
+        done < <(printf '%b\n' "$HEALTH_ISSUES")
+        ui_list fail "${issues[@]}"
     fi
 
-    # Metrics - compact
-    echo "  Tools: $METRICS_TOOL_COUNT available"
-    
-    # Show missing tools if any
+    ui_section "System"
+    ui_key_value "Tools" "$METRICS_TOOL_COUNT available"
     if [[ -n "$METRICS_MISSING_TOOLS" ]]; then
-        echo "  Missing: $METRICS_MISSING_TOOLS"
+        ui_key_value "Missing" "$METRICS_MISSING_TOOLS"
     fi
-    
     if [[ "$show_details" == "true" ]]; then
-        echo "  Uptime: $(get_uptime)"
-        echo "  macOS: $(sw_vers -productVersion 2>/dev/null || echo "unknown")"
+        ui_key_value "Uptime" "$(get_uptime)"
+        ui_key_value "macOS" "$(sw_vers -productVersion 2>/dev/null || echo "unknown")"
+        ui_key_value "Host" "$(hostname)"
     fi
-    
-    echo ""
+}
+
+show_guest_status() {
+    ui_header "SchoolCode Guest Status" "Guest environment"
+
+    local guest_user="${USER:-$(whoami)}"
+    local setup_script="/usr/local/bin/guest_setup_auto.sh"
+    local login_script="/usr/local/bin/guest_login_setup"
+    local plist_file="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
+
+    if [[ "$guest_user" == "Guest" ]]; then
+        ui_status ok "Current session is running as Guest"
+    else
+        ui_status info "Current session is running as $guest_user"
+    fi
+
+    ui_section "Artifacts"
+    [[ -x "$setup_script" ]] && ui_key_value "guest_setup_auto" "present" || ui_key_value "guest_setup_auto" "missing"
+    [[ -x "$login_script" ]] && ui_key_value "guest_login_setup" "present" || ui_key_value "guest_login_setup" "missing"
+    [[ -f "$plist_file" ]] && ui_key_value "launch agent" "present" || ui_key_value "launch agent" "missing"
+
+    if [[ "$guest_user" == "Guest" ]]; then
+        ui_section "Workspace"
+        ui_key_value "Home" "$HOME"
+        ui_key_value "SchoolCode" "$HOME/SchoolCode"
+        ui_key_value "PATH" "$PATH"
+    fi
 }
 
 # Function to monitor guest setup performance
@@ -803,18 +783,17 @@ case "${1:-status}" in
         fi
         ;;
     "guest")
-        monitor_guest_setup
+        show_guest_status
         ;;
     *)
-        echo "Usage: $0 {status|detailed|json|monitor [interval]|alerts [lines]|guest}"
-        echo ""
-        echo "Commands:"
-        echo "  status    - Show basic health status"
-        echo "  detailed  - Show detailed health status"
-        echo "  json      - Output status as JSON"
-        echo "  monitor   - Run continuous monitoring"
-        echo "  alerts    - Show recent alerts"
-        echo "  guest     - Monitor guest setup performance"
+        ui_header "SchoolCode Monitoring" "Usage"
+        ui_list info \
+            "$0 status" \
+            "$0 detailed" \
+            "$0 json" \
+            "$0 monitor 300" \
+            "$0 alerts 20" \
+            "$0 guest"
         exit 1
         ;;
 esac 

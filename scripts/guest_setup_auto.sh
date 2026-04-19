@@ -1,34 +1,38 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-# SchoolCode Guest Auto Setup
-# Runs automatically when the Guest user opens Terminal
-
-# Only run for Guest user
 if [[ "$(whoami)" != "Guest" ]]; then
     return 0 2>/dev/null || exit 0
 fi
 
-# Check if already initialized in this session
-if [[ "$SCHOOLCODE_INITIALIZED" == "true" ]]; then
+if [[ "${SCHOOLCODE_INITIALIZED:-false}" == "true" ]]; then
     return 0 2>/dev/null || exit 0
 fi
-
-# Mark as initialized
 export SCHOOLCODE_INITIALIZED="true"
 
-# Check if this is an interactive terminal
 if [[ ! -t 0 ]]; then
     return 0 2>/dev/null || exit 0
 fi
 
-# SchoolCode installation and guest tools directories
 SCHOOLCODE_DIR="/opt/schoolcode"
-GUEST_TOOLS_DIR="/Users/Guest/tools"
 WORKSPACE_DIR="$HOME/SchoolCode"
-
-# Script version
 VERSION="3.0.0"
+
+if [[ -f "$SCHOOLCODE_DIR/utils/ui.sh" ]]; then
+    source "$SCHOOLCODE_DIR/utils/ui.sh"
+else
+    SCHOOLCODE_UI_MODE=plain
+    ui_header() { printf '\n%s\n%s\n\n' "$1" "${2:-}"; }
+    ui_section() { printf '%s\n' "$1"; }
+    ui_key_value() { printf '  %-12s %s\n' "$1" "$2"; }
+    ui_list() {
+        shift || true
+        local item
+        for item in "$@"; do
+            printf '  - %s\n' "$item"
+        done
+    }
+fi
 
 tool_version() {
     local tool_name="$1"
@@ -41,11 +45,6 @@ tool_version() {
     fi
 }
 
-print_line() {
-    printf '%s\n' "------------------------------------------------------------"
-}
-
-# Configure PATH for Guest: SchoolCode bin, official Python, user pip bin
 PYTHON_BIN_DIR="/Library/Frameworks/Python.framework/Versions/Current/bin"
 if [[ -d "$PYTHON_BIN_DIR" ]]; then
     export PATH="$SCHOOLCODE_DIR/bin:$PYTHON_BIN_DIR:$HOME/.local/bin:$PATH"
@@ -53,50 +52,33 @@ else
     export PATH="$SCHOOLCODE_DIR/bin:$HOME/.local/bin:$PATH"
 fi
 
-# Configure pip to use user installs by default
 export PIP_CONFIG_FILE="/opt/schoolcode/config/pip.conf"
-
 mkdir -p "$WORKSPACE_DIR" 2>/dev/null || true
 
-# Display welcome banner after PATH is configured so version checks resolve
 clear
-YEAR=$(date +%Y)
+
 PYTHON_INFO="$(tool_version python3 --version)"
 GIT_INFO="$(tool_version git --version)"
 BREW_INFO="$(tool_version brew --version)"
 
-cat <<EOF
-============================================================
-SchoolCode v$VERSION
-Shared coding environment for this Mac
-© $YEAR Luka Löhr
-============================================================
+ui_header "SchoolCode v$VERSION" "Guest coding environment"
+ui_section "Workspace"
+ui_key_value "Path" "$WORKSPACE_DIR"
 
-Welcome. This Guest session is ready for coding.
+ui_section "Available tools"
+ui_key_value "Python" "$PYTHON_INFO"
+ui_key_value "Git" "$GIT_INFO"
+ui_key_value "Homebrew" "$BREW_INFO"
 
-Workspace
-  $WORKSPACE_DIR
+ui_section "Session rules"
+ui_list info \
+    "Files in the Guest account reset when you log out." \
+    "Python packages install to your user space by default." \
+    "Homebrew tools are available from the shared install on this Mac."
 
-Available tools
-  $PYTHON_INFO
-  $GIT_INFO
-  $BREW_INFO
-
-Session rules
-  Files in the Guest account are temporary and reset on logout.
-  Python packages install to your user space by default.
-  Homebrew tools are available from the shared install on this Mac.
-
-Quick start
-  cd "$WORKSPACE_DIR"
-  python3 --version
-  python3
-  git --version
-
-Tip
-  Start by creating a file in "$WORKSPACE_DIR" so your work stays easy to find
-  during this session.
-
-EOF
-
-print_line
+ui_section "Quick start"
+ui_list info \
+    "cd \"$WORKSPACE_DIR\"" \
+    "python3 --version" \
+    "python3" \
+    "git --version"

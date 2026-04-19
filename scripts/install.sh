@@ -1080,7 +1080,7 @@ setup_schoolcode_tools() {
     
     # Create directory structure
     show_progress "Creating directory structure"
-    mkdir -p "$INSTALL_PREFIX"/{bin,lib,config,wrappers,actual/bin,scripts}
+    mkdir -p "$INSTALL_PREFIX"/{bin,lib,config,wrappers,actual/bin,scripts,vendor}
     mkdir -p "$CONFIG_DIR"
     complete_progress
     
@@ -1091,6 +1091,9 @@ setup_schoolcode_tools() {
     fi
     if [[ -d "$SCRIPT_DIR/setup" ]]; then
         cp -r "$SCRIPT_DIR/setup" "$INSTALL_PREFIX/" 2>/dev/null || true
+    fi
+    if [[ -d "$PROJECT_ROOT/vendor" ]]; then
+        cp -r "$PROJECT_ROOT/vendor/gum" "$INSTALL_PREFIX/vendor/" 2>/dev/null || true
     fi
     
     # Copy update and uninstall scripts

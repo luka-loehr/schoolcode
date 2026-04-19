@@ -1,14 +1,22 @@
 #!/bin/bash
 # Copyright (c) 2025 Luka Löhr
 
-set -euo pipefail
-
 readonly SCHOOLCODE_GUM_VERSION="0.17.0"
 
-schoolcode_repo_root() {
+schoolcode_runtime_root() {
     local source_path="${BASH_SOURCE[0]}"
     local source_dir
     source_dir="$(cd "$(dirname "$source_path")" && pwd)"
+
+    local candidate
+    for candidate in "$source_dir/../.." "$source_dir/.."; do
+        candidate="$(cd "$candidate" && pwd)"
+        if [[ -d "$candidate/vendor/gum" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
     cd "$source_dir/../.." && pwd
 }
 
@@ -28,13 +36,13 @@ schoolcode_gum_platform_dir() {
 }
 
 schoolcode_gum_path() {
-    local repo_root
-    repo_root="$(schoolcode_repo_root)"
+    local runtime_root
+    runtime_root="$(schoolcode_runtime_root)"
 
     local platform_dir
     platform_dir="$(schoolcode_gum_platform_dir)"
 
-    echo "$repo_root/vendor/gum/$platform_dir/gum"
+    echo "$runtime_root/vendor/gum/$platform_dir/gum"
 }
 
 schoolcode_has_gum() {

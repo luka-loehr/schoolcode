@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
 # Script version
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="3.0.0"
 
 # Source utility libraries
 source "$SCRIPT_DIR/scripts/utils/logging.sh"

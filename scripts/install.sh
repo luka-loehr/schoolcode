@@ -13,7 +13,7 @@
 #   -f, --force     Force installation without prompts
 #   -l, --log PATH  Custom log file path
 #   --no-backup     Skip backup creation
-#   --prefix PATH   Custom installation prefix (default: /opt/schoolcode)
+#   --prefix PATH   Reserved for future use; only /opt/schoolcode is supported
 
 set -euo pipefail  # Exit on error, undefined variables, and pipe failures
 
@@ -262,15 +262,15 @@ ${WHITE}OPTIONS:${NC}
     -f, --force         Force installation without prompts
     -l, --log PATH      Specify custom log file path
     --no-backup         Skip creating backup before installation
-    --prefix PATH       Custom installation prefix (default: $DEFAULT_PREFIX)
+    --prefix PATH       Reserved for future use; only $DEFAULT_PREFIX is supported
     --no-color          Disable colored output
 
 ${WHITE}EXAMPLES:${NC}
     # Standard installation
     sudo $SCRIPT_NAME
 
-    # Verbose installation with custom prefix
-    sudo $SCRIPT_NAME -v --prefix /usr/local/schoolcode
+    # Verbose installation
+    sudo $SCRIPT_NAME -v
 
     # Dry run to see what would be installed
     sudo $SCRIPT_NAME -d -v
@@ -325,6 +325,11 @@ parse_arguments() {
                 ;;
             --prefix)
                 INSTALL_PREFIX="$2"
+                if [[ "$INSTALL_PREFIX" != "$DEFAULT_PREFIX" ]]; then
+                    echo "Custom installation prefixes are not supported yet."
+                    echo "Please use the default prefix: $DEFAULT_PREFIX"
+                    exit 1
+                fi
                 shift 2
                 ;;
             --no-color)
@@ -1027,41 +1032,28 @@ install_python() {
 # Install Python from official source
 install_python_official() {
     log INFO "Installing Python from python.org..."
-    
-    # Use Python 3.12.7 (latest stable as of writing)
-    local python_version="3.12.7"
-    local python_pkg_url="https://www.python.org/ftp/python/${python_version}/python-${python_version}-macos11.pkg"
-    local python_pkg="/tmp/python-installer.pkg"
-    
-    # Check if official Python is already installed
-    if [[ -f "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3" ]]; then
-        log SUCCESS "Official Python already installed"
-        return 0
+
+    local python_installer="$SCRIPT_DIR/utils/install_official_python.sh"
+    local python_utils="$SCRIPT_DIR/utils/python_utils.sh"
+
+    if [[ ! -x "$python_installer" ]]; then
+        log ERROR "Official Python installer utility is missing: $python_installer"
+        return 1
     fi
-    
-    # Download Python installer
-    show_progress "Downloading Python installer"
-    curl -fsSL "$python_pkg_url" -o "$python_pkg" || {
-        log ERROR "Failed to download Python installer"
-        return 1
-    }
-    complete_progress
-    
-    # Install Python
-    show_progress "Installing Python"
-    installer -pkg "$python_pkg" -target / || {
-        log ERROR "Failed to install Python"
-        rm -f "$python_pkg"
-        return 1
-    }
-    complete_progress
-    
-    rm -f "$python_pkg"
-    
-    # Update PATH for official Python
-    export PATH="/Library/Frameworks/Python.framework/Versions/3.12/bin:$PATH"
-    
-    log SUCCESS "Official Python ${python_version} installed"
+
+    "$python_installer" || return 1
+
+    if [[ -f "$python_utils" ]]; then
+        # shellcheck disable=SC1090
+        source "$python_utils"
+        local detected_python_bin
+        detected_python_bin="$(get_python_bin_dir 2>/dev/null || true)"
+        if [[ -n "$detected_python_bin" ]]; then
+            export PATH="$detected_python_bin:$PATH"
+        fi
+    fi
+
+    log SUCCESS "Official Python installed"
     return 0
 }
 
@@ -1124,13 +1116,18 @@ create_tool_symlinks() {
     local official_pip3=""
     local official_pip=""
     
-    # Check for official Python from python.org (usually in /Library/Frameworks)
-    if [[ -f "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" ]]; then
-        official_python3="/Library/Frameworks/Python.framework/Versions/Current/bin/python3"
-        official_python="/Library/Frameworks/Python.framework/Versions/Current/bin/python"
-        official_pip3="/Library/Frameworks/Python.framework/Versions/Current/bin/pip3"
-        official_pip="/Library/Frameworks/Python.framework/Versions/Current/bin/pip"
-        log DEBUG "Found official Python from python.org"
+    if [[ -f "$SCRIPT_DIR/utils/python_utils.sh" ]]; then
+        # shellcheck disable=SC1090
+        source "$SCRIPT_DIR/utils/python_utils.sh"
+        local official_python_bin=""
+        official_python_bin="$(get_python_bin_dir 2>/dev/null || true)"
+        if [[ -n "$official_python_bin" ]]; then
+            official_python3="$official_python_bin/python3"
+            official_python="$official_python_bin/python"
+            official_pip3="$official_python_bin/pip3"
+            official_pip="$official_python_bin/pip"
+            log DEBUG "Found official Python from python.org"
+        fi
     fi
     
     local tools=("brew" "python" "python3" "pip" "pip3" "git")
@@ -1204,8 +1201,9 @@ create_tool_symlinks() {
             ln -sf "$tool_path" "$INSTALL_PREFIX/actual/bin/$tool" 2>/dev/null || true
             
             # Create wrapper or direct symlink
-            if [[ "$tool" == "brew" ]] || [[ "$tool" == "pip" ]] || [[ "$tool" == "pip3" ]]; then
-                # These tools get security wrappers
+            if [[ "$tool" == "pip" ]] || [[ "$tool" == "pip3" ]]; then
+                # Pip uses lightweight shims so we can consistently resolve the
+                # active interpreter installation.
                 ln -sf "$INSTALL_PREFIX/wrappers/$tool" "$INSTALL_PREFIX/bin/$tool" 2>/dev/null || true
             else
                 # Direct symlink for other tools
@@ -1242,78 +1240,15 @@ create_tool_symlinks() {
     done
 }
 
-# Set up security wrappers
+# Set up lightweight tool shims
 setup_security_wrappers() {
-    log DEBUG "Setting up security wrappers..."
-    
-    # Create brew wrapper
-    cat > "$INSTALL_PREFIX/wrappers/brew" << 'EOF'
-#!/bin/bash
-# Homebrew wrapper for Guest users - blocks system modifications
+    log DEBUG "Setting up tool shims..."
 
-# Find the actual brew executable dynamically
-find_actual_brew() {
-    # Check symlink first
-    if [[ -L "/opt/schoolcode/actual/bin/brew" ]]; then
-        local target=$(readlink "/opt/schoolcode/actual/bin/brew")
-        if [[ -x "$target" ]]; then
-            echo "$target"
-            return
-        fi
-    fi
-    
-    # Search common locations
-    local brew_locations=(
-        "/opt/homebrew/bin/brew"
-        "/usr/local/bin/brew"
-        "/usr/local/Homebrew/bin/brew"
-    )
-    
-    for location in "${brew_locations[@]}"; do
-        if [[ -x "$location" ]]; then
-            echo "$location"
-            return
-        fi
-    done
-    
-    # Fallback to which
-    which brew 2>/dev/null || echo ""
-}
-
-ACTUAL_BREW=$(find_actual_brew)
-
-if [[ -z "$ACTUAL_BREW" ]]; then
-    echo "❌ Error: Homebrew not found" >&2
-    exit 1
-fi
-
-# Check if running as Guest
-if [[ "$USER" == "Guest" ]]; then
-    # Block dangerous commands
-    case "$1" in
-        install|uninstall|upgrade|update|tap|untap|link|unlink|pin|unpin|reinstall|remove|rm|cleanup)
-            echo "❌ Error: System-wide modifications are not allowed for Guest users" >&2
-            echo "   Command '$1' has been blocked for security reasons" >&2
-            exit 1
-            ;;
-        *)
-            # Allow safe read-only commands
-            exec "$ACTUAL_BREW" "$@"
-            ;;
-    esac
-else
-    # Non-guest users get full access
-    exec "$ACTUAL_BREW" "$@"
-fi
-EOF
-    
-    chmod 755 "$INSTALL_PREFIX/wrappers/brew"
-    
     # Create pip wrapper for both pip and pip3
     for pip_cmd in pip pip3; do
         cat > "$INSTALL_PREFIX/wrappers/$pip_cmd" << EOF
 #!/bin/bash
-# Pip wrapper for Guest users - forces user installations
+# Pip shim for SchoolCode environments.
 
 # Find actual pip - check multiple locations
 find_actual_pip() {
@@ -1357,28 +1292,8 @@ exec "\$ACTUAL_PIP" "\$@"
 EOF
         chmod 755 "$INSTALL_PREFIX/wrappers/$pip_cmd"
     done
-
-    # Create a sudo wrapper in our bin to block sudo for Guest users
-    cat > "$INSTALL_PREFIX/bin/sudo" << 'EOF'
-#!/bin/bash
-# sudo wrapper: block sudo for Guest users
-
-# Determine the real current user reliably (ignore spoofed $USER)
-REAL_USER="$(id -un 2>/dev/null || whoami)"
-CONSOLE_USER="$(stat -f "%Su" /dev/console 2>/dev/null || echo "")"
-
-if [[ "$REAL_USER" == "Guest" ]] || [[ "$CONSOLE_USER" == "Guest" ]]; then
-  echo "❌ Error: sudo is not permitted for Guest users." >&2
-  echo "   This environment is temporary and isolated; administrator actions are disabled." >&2
-  exit 1
-fi
-
-# Non-Guest users fall through to real sudo
-exec /usr/bin/sudo "$@"
-EOF
-    chmod 755 "$INSTALL_PREFIX/bin/sudo"
     
-    log DEBUG "Security wrappers created"
+    log DEBUG "Tool shims created"
 }
 
 # Configure pip

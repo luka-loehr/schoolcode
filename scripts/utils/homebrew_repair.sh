@@ -17,6 +17,10 @@ if [[ -f "${SCRIPT_DIR}/old_mac_compatibility.sh" ]]; then
     source "${SCRIPT_DIR}/old_mac_compatibility.sh"
 fi
 
+if [[ -f "${SCRIPT_DIR}/python_utils.sh" ]]; then
+    source "${SCRIPT_DIR}/python_utils.sh"
+fi
+
 # Global variables for output
 BREW_PREFIX=""
 PYTHON_VERSION=""
@@ -405,13 +409,14 @@ install_missing_dependencies() {
 # Fix Python installation and create unversioned symlinks
 fix_python() {
     log_info "Checking Python installation..."
-    
-    # Check if official Python is installed
-    local official_python_path="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
-    if [[ -x "$official_python_path" ]]; then
+
+    local python_bin_dir=""
+    python_bin_dir="$(get_python_bin_dir 2>/dev/null || true)"
+    local official_python_path="${python_bin_dir}/python3"
+    if [[ -n "$python_bin_dir" ]] && [[ -x "$official_python_path" ]]; then
         log_info "Official Python is installed at $official_python_path"
-        PYTHON_VERSION="3.13"
-        PYTHON_LIBEXEC_DIR="/Library/Frameworks/Python.framework/Versions/3.13/bin"
+        PYTHON_VERSION="$(find_official_python_version 2>/dev/null || echo "")"
+        PYTHON_LIBEXEC_DIR="$python_bin_dir"
         
         # Remove any Homebrew Python symlinks that might conflict
         rm -f "$BREW_PREFIX/bin/python" 2>/dev/null || true
@@ -488,8 +493,8 @@ output_variables() {
     echo "# Add to PATH if needed:"
     echo "export PATH=\"$BREW_PREFIX/bin:$BREW_PREFIX/sbin:\$PATH\""
     # Add official Python to PATH if available
-    if [[ -d "/Library/Frameworks/Python.framework/Versions/3.13/bin" ]]; then
-        echo "export PATH=\"/Library/Frameworks/Python.framework/Versions/3.13/bin:\$PATH\""
+    if [[ -n "${PYTHON_LIBEXEC_DIR:-}" ]] && [[ -d "$PYTHON_LIBEXEC_DIR" ]]; then
+        echo "export PATH=\"$PYTHON_LIBEXEC_DIR:\$PATH\""
     fi
 }
 

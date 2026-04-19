@@ -213,19 +213,6 @@ do_install_tools() {
     fi
 }
 
-# Setup guest account
-do_setup_guest() {
-    show_progress "Configuring Guest account"
-    
-    if SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/setup/setup_guest_shell_init.sh" 2>/dev/null; then
-        show_result "success" "Guest account configured"
-        return 0
-    else
-        show_result "error" "Guest setup failed"
-        return 1
-    fi
-}
-
 # Show system status
 show_status() {
     log_operation_start "STATUS" "Health check"
@@ -382,10 +369,6 @@ automatic_mode() {
         do_install_tools || failed=true
     fi
     
-    if [[ "$failed" != "true" ]]; then
-        do_setup_guest || failed=true
-    fi
-    
     echo ""
     
     if [[ "$failed" != "true" ]]; then
@@ -448,6 +431,7 @@ show_help() {
     echo ""
     printf "  ${BOLD}Usage:${NC}\n"
     printf "    sudo ./schoolcode.sh              ${DIM}Install everything${NC}\n"
+    printf "    sudo ./schoolcode.sh --interactive ${DIM}Compatibility alias for guided install${NC}\n"
     printf "    sudo ./schoolcode.sh --uninstall  ${DIM}Remove SchoolCode${NC}\n"
     printf "    sudo ./schoolcode.sh --status     ${DIM}Show system status${NC}\n"
     printf "    sudo ./schoolcode.sh --logs       ${DIM}View logs${NC}\n"
@@ -482,6 +466,9 @@ main() {
             ;;
         --help|-h)
             show_help
+            ;;
+        --interactive)
+            automatic_mode
             ;;
         "")
             # No arguments - run automatic mode

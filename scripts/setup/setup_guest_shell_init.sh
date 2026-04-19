@@ -4,7 +4,7 @@
 # Setup Guest Shell Initialization
 # Configures a LaunchAgent that sets up the Guest shell on every login
 
-set -e
+set -euo pipefail
 
 # Get the project root directory
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -36,17 +36,17 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Copy the auto-setup script
-log_msg "📋 Installing auto-setup script..."
-cp "$PROJECT_ROOT/scripts/guest_setup_auto.sh" /usr/local/bin/ 2>/dev/null || true
-chmod 755 /usr/local/bin/guest_setup_auto.sh 2>/dev/null || true
+log_msg "Installing auto-setup script..."
+cp "$PROJECT_ROOT/scripts/guest_setup_auto.sh" /usr/local/bin/guest_setup_auto.sh
+chmod 755 /usr/local/bin/guest_setup_auto.sh
 
 # Copy the login-setup script
-log_msg "📋 Installing login-setup script..."
-cp "$PROJECT_ROOT/scripts/setup/guest_login_setup.sh" /usr/local/bin/guest_login_setup 2>/dev/null || true
-chmod 755 /usr/local/bin/guest_login_setup 2>/dev/null || true
+log_msg "Installing login-setup script..."
+cp "$PROJECT_ROOT/scripts/setup/guest_login_setup.sh" /usr/local/bin/guest_login_setup
+chmod 755 /usr/local/bin/guest_login_setup
 
 # Install the LaunchAgent
-log_msg "🤖 Installing LaunchAgent..."
+log_msg "Installing LaunchAgent..."
 DST_PLIST="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
 
 # Write a clean LaunchAgent (no UserName in LaunchAgents)
@@ -73,18 +73,21 @@ cat > "$DST_PLIST" << 'EOF'
 </plist>
 EOF
 
-chown root:wheel "$DST_PLIST" 2>/dev/null || true
+chown root:wheel "$DST_PLIST"
 chmod 644 "$DST_PLIST"
 
-# Load the LaunchAgent
-# Do not attempt to load for the current user; it will load automatically on login per-user
+# Validate the installed artifacts explicitly so callers do not report success
+# after a partial copy/write failure.
+[[ -x /usr/local/bin/guest_setup_auto.sh ]]
+[[ -x /usr/local/bin/guest_login_setup ]]
+[[ -f "$DST_PLIST" ]]
 
 if [[ "$QUIET_MODE" != "true" ]]; then
     echo ""
-    echo "✅ Guest shell initialization configured!"
+    echo "Guest shell initialization configured."
     echo ""
     echo "Setup runs automatically when the Guest user opens Terminal."
-    echo "No permission dialogs required! 🎉"
+    echo "No permission dialogs required."
 fi
 
 log_operation_end "GUEST_SETUP" "SUCCESS"

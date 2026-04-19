@@ -348,6 +348,12 @@ prompt_user() {
     if [[ "$FORCE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
         return 0
     fi
+
+    # Quiet mode is used by the top-level installer wrapper and error traps.
+    # Never block there waiting for stdin.
+    if [[ "$QUIET" == "true" ]]; then
+        return 1
+    fi
     
     local prompt
     if [[ "$default" == "y" ]]; then
@@ -1434,69 +1440,15 @@ configure_user_path() {
 
 # Create Guest user configuration
 create_guest_configuration() {
-    log DEBUG "Creating Guest user configuration..."
-    
-    # Create LaunchAgent for Guest setup
-    local plist_file="/Library/LaunchAgents/com.schoolcode.guestsetup.plist"
-    
-    cat > "$plist_file" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.schoolcode.guestsetup</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/local/bin/guest_setup_auto.sh</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/schoolcode_guest_setup.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/schoolcode_guest_setup.err</string>
-</dict>
-</plist>
-EOF
-    
-    # Create guest setup script
-    cat > /usr/local/bin/guest_setup_auto.sh << 'EOF'
-#!/bin/bash
-# Guest user setup script for SchoolCode
+    log INFO "Configuring Guest account artifacts..."
 
-if [[ "$USER" == "Guest" ]]; then
-    # Add SchoolCode to PATH
-    export PATH="/opt/schoolcode/bin:$PATH"
-    
-    # Set up pip configuration
-    export PIP_CONFIG_FILE="/opt/schoolcode/config/pip.conf"
-    
-    # Create temporary workspace
-    mkdir -p "$HOME/SchoolCode"
-    cd "$HOME/SchoolCode"
-    
-    # Display welcome message
-    echo "========================================="
-    echo "     🚀 SchoolCode Guest Setup 🚀"
-    echo "========================================="
-    echo ""
-    echo "Development tools are ready to use!"
-    echo "Available commands:"
-    echo "  • python3 - Python programming"
-    echo "  • pip3    - Python package manager"
-    echo "  • git     - Version control"
-    echo "  • brew    - Package manager (read-only)"
-    echo ""
-    echo "Happy coding! 🎉"
-fi
-EOF
-    
-    chmod 755 /usr/local/bin/guest_setup_auto.sh
-    
-    # Load LaunchAgent
-    launchctl load "$plist_file" 2>/dev/null || true
-    
+    local setup_script="$SCRIPT_DIR/setup/setup_guest_shell_init.sh"
+    if [[ ! -x "$setup_script" ]]; then
+        log ERROR "Guest setup installer not found: $setup_script"
+        return 1
+    fi
+
+    SCHOOLCODE_QUIET="$QUIET" "$setup_script"
     log DEBUG "Guest configuration created"
 }
 

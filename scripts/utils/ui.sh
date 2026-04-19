@@ -233,3 +233,44 @@ ui_confirm() {
 
     schoolcode_gum confirm "$prompt"
 }
+
+ui_run_with_spinner() {
+    local title="$1"
+    shift
+
+    if ui_is_plain; then
+        "$@"
+        return $?
+    fi
+
+    local output_file
+    local runner_file
+    output_file="$(mktemp /tmp/schoolcode-ui-output.XXXXXX)"
+    runner_file="$(mktemp /tmp/schoolcode-ui-runner.XXXXXX)"
+
+    local command_string=""
+    printf -v command_string '%q ' "$@"
+
+    cat >"$runner_file" <<EOF
+#!/bin/bash
+$command_string >"$output_file" 2>&1
+EOF
+    chmod 700 "$runner_file"
+
+    local exit_code=0
+    if ! schoolcode_gum spin \
+        --spinner dot \
+        --title "$title" \
+        --title.foreground "245" \
+        --spinner.foreground "63" \
+        -- "$runner_file"; then
+        exit_code=$?
+    fi
+
+    if [[ -s "$output_file" ]]; then
+        cat "$output_file"
+    fi
+
+    rm -f "$output_file" "$runner_file"
+    return "$exit_code"
+}

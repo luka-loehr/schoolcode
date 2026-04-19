@@ -184,10 +184,14 @@ cmd_uninstall() {
 cmd_status() {
     case "$SUBCOMMAND" in
         ""|"brief")
-            bash "$SCRIPT_DIR/utils/monitoring.sh" status
+            ui_run_with_spinner \
+                "Running system checks" \
+                bash "$SCRIPT_DIR/utils/monitoring.sh" status
             ;;
         "detailed")
-            bash "$SCRIPT_DIR/utils/monitoring.sh" detailed
+            ui_run_with_spinner \
+                "Running system checks" \
+                bash "$SCRIPT_DIR/utils/monitoring.sh" detailed
             ;;
         "json")
             SCHOOLCODE_UI_MODE=plain bash "$SCRIPT_DIR/utils/monitoring.sh" json
@@ -202,10 +206,14 @@ cmd_status() {
 cmd_health() {
     case "$SUBCOMMAND" in
         ""|"basic")
-            bash "$SCRIPT_DIR/utils/monitoring.sh" status
+            ui_run_with_spinner \
+                "Running health checks" \
+                bash "$SCRIPT_DIR/utils/monitoring.sh" status
             ;;
         "detailed")
-            bash "$SCRIPT_DIR/utils/monitoring.sh" detailed
+            ui_run_with_spinner \
+                "Running health checks" \
+                bash "$SCRIPT_DIR/utils/monitoring.sh" detailed
             ;;
         "continuous")
             local interval="${OPTIONS[0]:-300}"
@@ -371,7 +379,9 @@ cmd_tools() {
 cmd_guest() {
     case "$SUBCOMMAND" in
         "status"|"test")
-            bash "$SCRIPT_DIR/utils/monitoring.sh" guest
+            ui_run_with_spinner \
+                "Inspecting Guest environment" \
+                bash "$SCRIPT_DIR/utils/monitoring.sh" guest
             ;;
         "setup")
             ui_header "SchoolCode CLI" "Guest setup"

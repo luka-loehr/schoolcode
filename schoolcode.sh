@@ -125,7 +125,9 @@ do_install_tools() {
 }
 
 show_status() {
-    SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/utils/monitoring.sh" detailed
+    ui_run_with_spinner \
+        "Running system checks" \
+        env SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/utils/monitoring.sh" detailed
 }
 
 print_log_contents() {

@@ -74,11 +74,14 @@ show_help() {
     echo ""
 echo -e "${CLI_INFO}Installation & Setup:${CLI_NC}"
     echo "  install         Install SchoolCode system (use schoolcode.sh instead)"
+    echo "  install-auto    Legacy alias for 'install'"
+    echo "  install-interactive Legacy alias for 'install'"
     echo "  uninstall       Remove SchoolCode system"
     echo ""
     echo -e "${CLI_INFO}System Management:${CLI_NC}"
     echo "  status          Show system status"
     echo "  health          Run health checks"
+    echo "  monitor         Legacy alias for 'health continuous'"
     echo "  repair          Repair system prerequisites"
     echo "  compatibility   Check system compatibility"
     echo "  logs            View system logs"
@@ -112,6 +115,7 @@ echo -e "${CLI_INFO}Installation & Setup:${CLI_NC}"
     echo "  $0 tools list           # List available tools"
     echo "  $0 guest setup          # Setup guest environment"
     echo "  $0 logs error           # Show error logs"
+    echo "  $0 monitor 30           # Legacy alias for continuous monitoring"
     echo ""
 }
 
@@ -180,6 +184,21 @@ parse_args() {
                 ;;
         esac
     done
+
+    case "$COMMAND" in
+        install-auto)
+            COMMAND="install"
+            SUBCOMMAND="full"
+            ;;
+        install-interactive)
+            COMMAND="install"
+            SUBCOMMAND="full"
+            ;;
+        monitor)
+            COMMAND="health"
+            SUBCOMMAND="continuous"
+            ;;
+    esac
 }
 
 # Function to require root privileges
@@ -507,13 +526,16 @@ cmd_tools() {
 # Guest management commands
 cmd_guest() {
     case "$SUBCOMMAND" in
+        "status")
+            bash "$SCRIPT_DIR/utils/monitoring.sh" guest
+            ;;
         "setup")
-            if [[ "$USER" != "Guest" ]]; then
-                print_warning "This command should be run as the Guest user"
-            fi
-            
             if [[ "$DRY_RUN" == "false" ]]; then
-                bash "$SCRIPT_DIR/guest_setup_auto.sh"
+                if [[ $EUID -eq 0 ]]; then
+                    bash "$SCRIPT_DIR/setup/setup_guest_shell_init.sh"
+                else
+                    bash "$SCRIPT_DIR/guest_setup_auto.sh"
+                fi
             fi
             print_success "Guest setup completed"
             ;;
@@ -592,8 +614,7 @@ cmd_permissions() {
             ;;
         "check")
             print_info "Checking permissions..."
-            # This would be part of the monitoring health check
-            bash "$SCRIPT_DIR/utils/monitoring.sh" status | grep -A 20 "Component Status"
+            bash "$SCRIPT_DIR/utils/monitoring.sh" detailed
             ;;
         *)
             print_error "Unknown permissions subcommand: $SUBCOMMAND"

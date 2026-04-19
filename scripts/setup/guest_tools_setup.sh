@@ -31,17 +31,17 @@ fi
 
 case $COMMAND in
     install-admin)
-        echo "📦 Installing development tools..."
+        echo "Installing development tools..."
         
         # Check if running as root
         if [ "$EUID" -ne 0 ]; then 
-            echo -e "${RED}❌ Please run with sudo: sudo $0 install-admin${NC}"
+            echo -e "${RED}[FAIL] Please run with sudo: sudo $0 install-admin${NC}"
             exit 1
         fi
         
         # Check if Homebrew is installed
         if ! command -v brew &> /dev/null; then
-            echo -e "${RED}❌ Homebrew not found. Please install Homebrew first.${NC}"
+            echo -e "${RED}[FAIL] Homebrew not found. Please install Homebrew first.${NC}"
             echo "Visit: https://brew.sh"
             exit 1
         fi
@@ -107,14 +107,14 @@ case $COMMAND in
         # If tools are missing, ask if they should be installed
         if [ "$MISSING_TOOLS" = true ]; then
             echo ""
-            echo -e "${YELLOW}⚠️  Some tools need to be configured:${NC}"
+            echo -e "${YELLOW}[WARN] Some tools need to be configured:${NC}"
             echo "Missing:$MISSING_LIST"
             echo -n "Configure now? (y/n): "
             read -r response
             
             if [[ ! "$response" =~ ^[yY]$ ]]; then
                 echo ""
-                echo -e "${RED}❌ Setup cancelled.${NC}"
+                echo -e "${RED}[FAIL] Setup cancelled.${NC}"
                 echo "The tools must be installed for SchoolCode."
                 exit 1
             fi
@@ -136,7 +136,7 @@ case $COMMAND in
             
             # Install official Python if needed
             if ! check_tool "python3" "Python3" || ! check_tool "python" "Python"; then
-                echo "📦 Installing official Python from python.org..."
+                echo "Installing official Python from python.org..."
                 
                 # Get the directory of this script
                 CURRENT_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -146,7 +146,7 @@ case $COMMAND in
                 if [ -f "$UTILS_DIR/install_official_python.sh" ]; then
                     "$UTILS_DIR/install_official_python.sh"
                 else
-                    echo -e "${RED}❌ Python installer script not found${NC}"
+                    echo -e "${RED}[FAIL] Python installer script not found${NC}"
                     exit 1
                 fi
             fi
@@ -155,7 +155,7 @@ case $COMMAND in
             INSTALL_SCRIPT="/tmp/schoolcode_install_tools.sh"
             cat > "$INSTALL_SCRIPT" << 'INSTALLEOF'
 #!/bin/bash
-echo "📦 Installing other tools via Homebrew..."
+echo "Installing other tools via Homebrew..."
 
 # Array of tools to install
 TOOLS_TO_INSTALL=""
@@ -169,9 +169,9 @@ if [ -n "$TOOLS_TO_INSTALL" ]; then
     echo "Installing: $TOOLS_TO_INSTALL"
     brew install $TOOLS_TO_INSTALL
     echo ""
-    echo "✅ Installation completed!"
+    echo "[OK] Installation completed."
 else
-    echo "✅ All core tools already installed!"
+    echo "[OK] All core tools already installed."
 fi
 INSTALLEOF
             
@@ -179,7 +179,7 @@ INSTALLEOF
             
             # Run installation as normal user
             if [ "$ORIGINAL_USER" = "root" ] || [ -z "$ORIGINAL_USER" ]; then
-                echo -e "${RED}❌ Could not determine username.${NC}"
+                echo -e "${RED}[FAIL] Could not determine username.${NC}"
                 echo "Please run the installation manually:"
                 echo "  brew install git python"
                 MISSING_TOOLS=false
@@ -203,7 +203,7 @@ INSTALLEOF
             
             # Skip if source is empty
             if [ -z "$source" ]; then
-                echo "   ⚠️  $target_name: no source path provided"
+                echo "   [WARN] $target_name: no source path provided"
                 return 1
             fi
             
@@ -213,19 +213,19 @@ INSTALLEOF
             
             # Check if source and target would be the same (circular symlink)
             if [ "$real_source" = "$real_target" ]; then
-                echo "   ⚠️  $target_name: skipping circular symlink"
+                echo "   [WARN] $target_name: skipping circular symlink"
                 return 1
             fi
             
             # Check if source exists and is a real file/executable (not a broken symlink)
             if [ ! -e "$source" ]; then
-                echo "   ⚠️  $target_name: source does not exist ($source)"
+                echo "   [WARN] $target_name: source does not exist ($source)"
                 return 1
             fi
             
             # Check if source is itself a broken symlink
             if [ -L "$source" ] && [ ! -e "$source" ]; then
-                echo "   ⚠️  $target_name: source is a broken symlink ($source)"
+                echo "   [WARN] $target_name: source is a broken symlink ($source)"
                 return 1
             fi
             
@@ -236,7 +236,7 @@ INSTALLEOF
         }
         
         echo ""
-        echo "🔗 Creating tool symlinks..."
+        echo "Creating tool symlinks..."
         
         # Helper function to find tool path excluding schoolcode directories
         find_real_tool_path() {
@@ -298,7 +298,7 @@ INSTALLEOF
         if [ -n "$BREW_BIN" ]; then
             create_symlink "$BREW_BIN" "$ADMIN_TOOLS_DIR/bin/brew"
         else
-            echo "   ⚠️  Could not find brew executable"
+            echo "   [WARN] Could not find brew executable"
         fi
         
         # Source Python utils to find dynamic version
@@ -317,7 +317,7 @@ INSTALLEOF
             create_symlink "$OFFICIAL_PYTHON_PATH/pip3" "$ADMIN_TOOLS_DIR/bin/pip3"
             create_symlink "$OFFICIAL_PYTHON_PATH/pip" "$ADMIN_TOOLS_DIR/bin/pip"
         else
-            echo "   ⚠️  Official Python not found"
+            echo "   [WARN] Official Python not found"
             # Fallback to any python3 found in PATH
             if command -v python3 &> /dev/null; then
                 create_symlink "$(which python3)" "$ADMIN_TOOLS_DIR/bin/python3"
@@ -334,19 +334,19 @@ INSTALLEOF
         if [ -n "$GIT_PATH" ]; then
             create_symlink "$GIT_PATH" "$ADMIN_TOOLS_DIR/bin/git"
         else
-            echo "   ⚠️  Could not find git executable"
+            echo "   [WARN] Could not find git executable"
         fi
         
         # Verify symlinks
         echo ""
-        echo "🔍 Verifying symlinks..."
+        echo "Verifying symlinks..."
         for tool in brew python python3 pip pip3 git; do
             if [ -L "$ADMIN_TOOLS_DIR/bin/$tool" ] && [ -e "$ADMIN_TOOLS_DIR/bin/$tool" ]; then
-                echo "   ✅ $tool: OK"
+                echo "   [OK]   $tool: OK"
             elif [ -e "$ADMIN_TOOLS_DIR/bin/$tool" ]; then
-                echo "   ⚠️  $tool: exists but not a symlink"
+                echo "   [WARN] $tool: exists but not a symlink"
             else
-                echo "   ❌ $tool: missing"
+                echo "   [FAIL] $tool: missing"
             fi
         done
         
@@ -367,16 +367,16 @@ INSTALLEOF
             chmod 755 /usr/local/bin/open_guest_terminal
         fi
         
-        echo -e "${GREEN}✅ Tools installed successfully!${NC}"
+        echo -e "${GREEN}[OK] Tools installed successfully.${NC}"
         ;;
         
     setup)
         print_header
-        echo "🚀 Setting up tools for current user..."
+        echo "Setting up tools for the current user..."
         
         # Only proceed if we're the Guest user
         if [ "$USER" != "Guest" ]; then
-            echo -e "${YELLOW}⚠️  This command is meant for the Guest user.${NC}"
+            echo -e "${YELLOW}[WARN] This command is meant for the Guest user.${NC}"
             echo "Current user: $USER"
             echo ""
             echo "For admin setup, use: sudo $0 install-admin"
@@ -385,27 +385,27 @@ INSTALLEOF
         
         # Check if admin tools exist
         if [ ! -d "$ADMIN_TOOLS_DIR/bin" ]; then
-            echo -e "${RED}❌ Admin tools not found at $ADMIN_TOOLS_DIR${NC}"
+            echo -e "${RED}[FAIL] Admin tools not found at $ADMIN_TOOLS_DIR${NC}"
             echo "Please run: sudo $0 install-admin"
             exit 1
         fi
         
-        echo "🔧 PATH is managed by guest_login_setup and guest_setup_auto."
-        echo -e "${GREEN}✅ No copy needed; tools are in $ADMIN_TOOLS_DIR/bin${NC}"
+        echo "PATH is managed by guest_login_setup and guest_setup_auto."
+        echo -e "${GREEN}[OK] No copy needed; tools are in $ADMIN_TOOLS_DIR/bin${NC}"
         ;;
         
     cleanup)
         print_header
-        echo "🧹 Cleaning up Guest tools..."
+        echo "Cleaning up Guest tools..."
         
         if [ "$USER" = "Guest" ] && [ -d "$GUEST_TOOLS_DIR" ]; then
             rm -rf "$GUEST_TOOLS_DIR"
-            echo "✅ Removed $GUEST_TOOLS_DIR"
+            echo "[OK] Removed $GUEST_TOOLS_DIR"
             
             # Remove from profile
             if [ -f "$HOME/.zprofile" ]; then
                 sed -i '' '/# SchoolCode Guest Tools/,+1d' "$HOME/.zprofile" 2>/dev/null || true
-                echo "✅ Cleaned .zprofile"
+                echo "[OK] Cleaned .zprofile"
             fi
         else
             echo "No Guest tools found to clean."
@@ -414,11 +414,11 @@ INSTALLEOF
         
     create-agent)
         print_header
-        echo "🤖 Creating LaunchAgent for Terminal auto-open..."
+        echo "Creating LaunchAgent for Terminal auto-open..."
         
         # Check if running as root
         if [ "$EUID" -ne 0 ]; then 
-            echo -e "${RED}❌ Please run with sudo: sudo $0 create-agent${NC}"
+            echo -e "${RED}[FAIL] Please run with sudo: sudo $0 create-agent${NC}"
             exit 1
         fi
         
@@ -453,7 +453,7 @@ EOF
         launchctl load "$TERMINAL_PLIST" 2>/dev/null || true
         
         echo ""
-        echo -e "${GREEN}✅ LaunchAgent created successfully!${NC}"
+        echo -e "${GREEN}[OK] LaunchAgent created successfully.${NC}"
         echo ""
         echo "Terminal will now open automatically when Guest logs in."
         ;;

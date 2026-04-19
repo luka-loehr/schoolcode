@@ -1297,7 +1297,7 @@ if [[ -z "\$ACTUAL_PIP" ]] || [[ ! -x "\$ACTUAL_PIP" ]]; then
     fi
     
     if [[ -z "\$ACTUAL_PIP" ]] || [[ ! -x "\$ACTUAL_PIP" ]]; then
-        echo "❌ Error: $pip_cmd not found" >&2
+        echo "[FAIL] $pip_cmd not found" >&2
         exit 1
     fi
 fi
@@ -1420,13 +1420,13 @@ verify_installation() {
         if [[ -e "$tool_path" ]]; then
             # Test if tool works
             if "$tool_path" --version &>/dev/null 2>&1; then
-                [[ "$QUIET" != "true" ]] && echo "  ✅ $tool: Working"
+                [[ "$QUIET" != "true" ]] && echo "  [OK]   $tool: Working"
                 tools_working=$((tools_working + 1))
             else
-                [[ "$QUIET" != "true" ]] && echo "  ⚠️  $tool: Installed but not working"
+                [[ "$QUIET" != "true" ]] && echo "  [WARN] $tool: Installed but not working"
             fi
         else
-            [[ "$QUIET" != "true" ]] && echo "  ❌ $tool: Not found"
+            [[ "$QUIET" != "true" ]] && echo "  [FAIL] $tool: Not found"
             verification_failed=true
         fi
     done

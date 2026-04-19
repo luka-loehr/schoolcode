@@ -36,6 +36,9 @@ sudo ./scripts/schoolcode-cli.sh logs error        # View error logs
 - `system_repair.sh` - System repair functionality
 - `old_mac_compatibility.sh` - Compatibility checking
 - `scripts/utils/logging.sh` - Logging system
+- `scripts/utils/ui.sh` - Shared Gum-backed terminal UI layer
+- `scripts/utils/gum.sh` - Vendored Gum runtime resolver
+- `vendor/gum/` - Pinned Gum binaries for macOS
 - `scripts/setup/` - Guest account management
 
 ## 🏗️ Architecture Overview
@@ -51,6 +54,8 @@ SchoolCode/
 │   ├── utils/                          # Utility scripts
 │   │   ├── logging.sh                  # Centralized logging
 │   │   ├── config.sh                   # Configuration management
+│   │   ├── ui.sh                       # Shared CLI presentation layer
+│   │   ├── gum.sh                      # Vendored Gum resolver
 │   │   ├── monitoring.sh               # System health monitoring
 │   │   ├── homebrew_repair.sh          # Homebrew-specific repairs
 │   │   ├── install_official_python.sh  # Python installation
@@ -61,6 +66,7 @@ SchoolCode/
 │       └── setup_guest_shell_init.sh
 ├── system_repair.sh                    # System repair utility
 ├── old_mac_compatibility.sh            # Compatibility checker
+├── vendor/gum/                         # Pinned Gum binaries
 └── tests/                              # Test suite
 ```
 

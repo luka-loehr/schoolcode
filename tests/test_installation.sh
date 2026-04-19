@@ -10,13 +10,6 @@ set -uo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Colors
-readonly GREEN='\033[0;32m'
-readonly RED='\033[0;31m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m'
-
 # Test counters
 TESTS_RUN=0
 TESTS_PASSED=0
@@ -24,40 +17,35 @@ TESTS_FAILED=0
 
 # Utility functions
 print_header() {
-    echo -e "${BLUE}╔═══════════════════════════════════════╗"
-    echo -e "║        SchoolCode Test Suite         ║"
-    echo -e "╚═══════════════════════════════════════╝${NC}"
-    echo ""
+    printf '\nSchoolCode Test Suite\n\n'
 }
 
 print_test() {
-    echo -e "${BLUE}Testing:${NC} $1"
+    printf 'Testing: %s\n' "$1"
 }
 
 print_pass() {
-    echo -e "  ${GREEN}✅ PASS${NC}"
+    printf '  [PASS]\n'
     ((TESTS_PASSED++))
 }
 
 print_fail() {
-    echo -e "  ${RED}❌ FAIL${NC}"
+    printf '  [FAIL]\n'
     ((TESTS_FAILED++))
 }
 
 print_summary() {
     echo ""
-    echo -e "${BLUE}════════════════════════════════════════${NC}"
-    echo -e "${BLUE}              TEST SUMMARY${NC}"
-    echo -e "${BLUE}════════════════════════════════════════${NC}"
-    echo -e "Tests Run:     $TESTS_RUN"
-    echo -e "Tests Passed:  ${GREEN}$TESTS_PASSED${NC}"
-    echo -e "Tests Failed:  ${RED}$TESTS_FAILED${NC}"
+    echo "Test Summary"
+    echo "Tests Run:     $TESTS_RUN"
+    echo "Tests Passed:  $TESTS_PASSED"
+    echo "Tests Failed:  $TESTS_FAILED"
     
     if [[ $TESTS_FAILED -eq 0 ]]; then
-        echo -e "${GREEN}🎉 All tests passed!${NC}"
+        echo "All tests passed."
         return 0
     else
-        echo -e "${RED}❌ Some tests failed${NC}"
+        echo "Some tests failed."
         return 1
     fi
 }
@@ -71,6 +59,8 @@ test_script_exists() {
         "$PROJECT_ROOT/schoolcode.sh"
         "$PROJECT_ROOT/scripts/install.sh"
         "$PROJECT_ROOT/scripts/schoolcode-cli.sh"
+        "$PROJECT_ROOT/scripts/utils/ui.sh"
+        "$PROJECT_ROOT/scripts/utils/gum.sh"
         "$PROJECT_ROOT/system_repair.sh"
         "$PROJECT_ROOT/old_mac_compatibility.sh"
         "$PROJECT_ROOT/scripts/setup/setup_guest_shell_init.sh"
@@ -99,6 +89,8 @@ test_script_executable() {
         "$PROJECT_ROOT/schoolcode.sh"
         "$PROJECT_ROOT/scripts/install.sh"
         "$PROJECT_ROOT/scripts/schoolcode-cli.sh"
+        "$PROJECT_ROOT/vendor/gum/darwin-arm64/gum"
+        "$PROJECT_ROOT/vendor/gum/darwin-x86_64/gum"
         "$PROJECT_ROOT/system_repair.sh"
         "$PROJECT_ROOT/old_mac_compatibility.sh"
         "$PROJECT_ROOT/scripts/setup/setup_guest_shell_init.sh"
@@ -127,6 +119,8 @@ test_script_syntax() {
         "$PROJECT_ROOT/schoolcode.sh"
         "$PROJECT_ROOT/scripts/install.sh"
         "$PROJECT_ROOT/scripts/schoolcode-cli.sh"
+        "$PROJECT_ROOT/scripts/utils/ui.sh"
+        "$PROJECT_ROOT/scripts/utils/gum.sh"
         "$PROJECT_ROOT/system_repair.sh"
         "$PROJECT_ROOT/old_mac_compatibility.sh"
         "$PROJECT_ROOT/scripts/setup/setup_guest_shell_init.sh"
@@ -194,6 +188,17 @@ test_cli_status() {
     fi
 }
 
+test_vendored_gum() {
+    print_test "Vendored Gum runtimes are present"
+    ((TESTS_RUN++))
+
+    if [[ -x "$PROJECT_ROOT/vendor/gum/darwin-arm64/gum" && -x "$PROJECT_ROOT/vendor/gum/darwin-x86_64/gum" ]]; then
+        print_pass
+    else
+        print_fail
+    fi
+}
+
 test_tools_available() {
     print_test "Development tools are available"
     ((TESTS_RUN++))
@@ -255,6 +260,7 @@ main() {
     test_help_function
     test_compatibility_check
     test_cli_status
+    test_vendored_gum
     test_tools_available
     test_python_functionality
     test_git_functionality

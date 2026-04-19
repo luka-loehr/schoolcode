@@ -378,34 +378,53 @@ validate_config() {
 
 # Function to show current configuration
 show_config() {
-    echo "╔═══════════════════════════════════════╗"
-    echo "║        SchoolCode Configuration         ║"
-    echo "╚═══════════════════════════════════════╝"
-    echo ""
-    
-    echo "📁 Paths:"
+    if declare -f ui_section >/dev/null 2>&1 && declare -f ui_key_value >/dev/null 2>&1; then
+        ui_section "Paths"
+        ui_key_value "SchoolCode Tools" "$(get_config 'SCHOOLCODE_TOOLS_DIR')"
+        ui_key_value "Guest Tools" "$(get_config 'GUEST_TOOLS_DIR')"
+        ui_key_value "Scripts" "$(get_config 'SCRIPTS_DIR')"
+
+        ui_section "Tools"
+        ui_key_value "Managed" "$(get_config 'TOOLS_LIST')"
+        ui_key_value "Homebrew" "$(get_config 'HOMEBREW_TOOLS')"
+        ui_key_value "System" "$(get_config 'SYSTEM_TOOLS')"
+
+        ui_section "Behavior"
+        ui_key_value "Auto Install" "$(get_config 'AUTO_INSTALL_MISSING')"
+        ui_key_value "Open Terminal" "$(get_config 'OPEN_TERMINAL_ON_LOGIN')"
+        ui_key_value "Welcome Message" "$(get_config 'SHOW_WELCOME_MESSAGE')"
+        ui_key_value "Setup Timeout" "$(get_config 'GUEST_SETUP_TIMEOUT')s"
+
+        ui_section "Logging"
+        ui_key_value "Level" "$(get_config 'LOG_LEVEL')"
+        ui_key_value "Debug" "$(get_config 'ENABLE_DEBUG_LOGGING')"
+        ui_key_value "Retention" "$(get_config 'LOG_RETENTION_DAYS') days"
+        return 0
+    fi
+
+    echo "Paths"
     echo "  SchoolCode Tools: $(get_config 'SCHOOLCODE_TOOLS_DIR')"
-    echo "  Guest Tools: $(get_config 'GUEST_TOOLS_DIR')"
-    echo "  Scripts:     $(get_config 'SCRIPTS_DIR')"
+    echo "  Guest Tools:      $(get_config 'GUEST_TOOLS_DIR')"
+    echo "  Scripts:          $(get_config 'SCRIPTS_DIR')"
     echo ""
-    
-    echo "🔧 Tools:"
-    echo "  Managed:   $(get_config 'TOOLS_LIST')"
-    echo "  Homebrew:  $(get_config 'HOMEBREW_TOOLS')"
-    echo "  System:    $(get_config 'SYSTEM_TOOLS')"
+
+    echo "Tools"
+    echo "  Managed:          $(get_config 'TOOLS_LIST')"
+    echo "  Homebrew:         $(get_config 'HOMEBREW_TOOLS')"
+    echo "  System:           $(get_config 'SYSTEM_TOOLS')"
     echo ""
-    
-    echo "⚙️  Behavior:"
-    echo "  Auto Install:    $(get_config 'AUTO_INSTALL_MISSING')"
-    echo "  Open Terminal:   $(get_config 'OPEN_TERMINAL_ON_LOGIN')"
-    echo "  Welcome Msg:     $(get_config 'SHOW_WELCOME_MESSAGE')"
-    echo "  Setup Timeout:   $(get_config 'GUEST_SETUP_TIMEOUT')s"
+
+    echo "Behavior"
+    echo "  Auto Install:     $(get_config 'AUTO_INSTALL_MISSING')"
+    echo "  Open Terminal:    $(get_config 'OPEN_TERMINAL_ON_LOGIN')"
+    echo "  Welcome Message:  $(get_config 'SHOW_WELCOME_MESSAGE')"
+    echo "  Setup Timeout:    $(get_config 'GUEST_SETUP_TIMEOUT')s"
     echo ""
-    
-    echo "📝 Logging:"
-    echo "  Level:     $(get_config 'LOG_LEVEL')"
-    echo "  Debug:     $(get_config 'ENABLE_DEBUG_LOGGING')"
-    echo "  Retention: $(get_config 'LOG_RETENTION_DAYS') days"
+
+    echo "Logging"
+    echo "  Level:            $(get_config 'LOG_LEVEL')"
+    echo "  Debug:            $(get_config 'ENABLE_DEBUG_LOGGING')"
+    echo "  Retention:        $(get_config 'LOG_RETENTION_DAYS') days"
     echo ""
 }
 

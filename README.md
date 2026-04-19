@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/github/v/release/luka-loehr/schoolcode?label=version&color=blue&logo=github&style=flat)](https://github.com/luka-loehr/schoolcode/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green?style=flat)](LICENSE)
 
-**SchoolCode** sets up a complete development environment on shared school Macs in one command. It installs Python, Homebrew, Git, and pip while leaning on macOS account permissions and standard Homebrew ownership rather than custom root-escalation tricks.
+**SchoolCode** sets up a complete development environment on shared school Macs in one command. It installs Python, Homebrew, Git, and pip in a way that fits standard macOS account permissions and Homebrew ownership.
 
 ## Requirements
 

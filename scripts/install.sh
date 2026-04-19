@@ -448,6 +448,18 @@ verify_system_requirements() {
         fi
     fi
     
+    # Check that the Guest account is enabled before we install Guest-specific
+    # login automation and status checks.
+    if [[ "$(uname)" == "Darwin" ]]; then
+        local guest_enabled
+        guest_enabled=$(defaults read /Library/Preferences/com.apple.loginwindow GuestEnabled 2>/dev/null || echo "0")
+        if [[ "$guest_enabled" != "1" ]]; then
+            log ERROR "The macOS Guest account is disabled"
+            log ERROR "Enable Guest User in System Settings before installing SchoolCode"
+            return 1
+        fi
+    fi
+
     # Check for required commands
     local missing_commands=()
     for cmd in "${REQUIRED_COMMANDS[@]}"; do

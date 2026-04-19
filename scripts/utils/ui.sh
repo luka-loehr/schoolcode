@@ -5,6 +5,7 @@ UI_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$UI_SCRIPT_DIR/gum.sh"
 
 ui_is_plain() {
+    [[ "${SCHOOLCODE_UI_MODE:-auto}" == "rich" ]] && return 1
     [[ "${SCHOOLCODE_UI_MODE:-auto}" == "plain" ]] && return 0
     [[ ! -t 1 ]] && return 0
     [[ "${TERM:-}" == "dumb" ]] && return 0
@@ -243,39 +244,35 @@ ui_run_with_spinner() {
         return $?
     fi
 
-    local spinner_pid=0
-    local title_block
-    title_block="$(schoolcode_gum style --foreground "245" "$title")"
+    local output_file
+    local runner_file
+    output_file="$(mktemp /tmp/schoolcode-ui-output.XXXXXX)"
+    runner_file="$(mktemp /tmp/schoolcode-ui-runner.XXXXXX)"
 
-    spinner_loop() {
-        local frames='-\|/'
-        local index=0
-        while true; do
-            local frame="${frames:index:1}"
-            printf '\r%s %s' "$frame" "$title_block" >&2
-            index=$(((index + 1) % 4))
-            sleep 0.1
-        done
-    }
+    local command_string=""
+    printf -v command_string '%q ' "$@"
 
-    spinner_loop &
-    spinner_pid=$!
+    cat >"$runner_file" <<EOF
+#!/bin/bash
+export SCHOOLCODE_UI_MODE=rich
+$command_string >"$output_file" 2>&1
+EOF
+    chmod 700 "$runner_file"
 
-    local errexit_was_on=false
-    case $- in
-        *e*) errexit_was_on=true ;;
-    esac
-
-    set +e
-    "$@"
-    local exit_code=$?
-    if [[ "$errexit_was_on" == "true" ]]; then
-        set -e
+    local exit_code=0
+    if ! schoolcode_gum spin \
+        --spinner dot \
+        --title "$title" \
+        --title.foreground "245" \
+        --spinner.foreground "63" \
+        -- "$runner_file"; then
+        exit_code=$?
     fi
 
-    kill "$spinner_pid" 2>/dev/null || true
-    wait "$spinner_pid" 2>/dev/null || true
-    printf '\r\033[K' >&2
+    if [[ -s "$output_file" ]]; then
+        cat "$output_file"
+    fi
 
+    rm -f "$output_file" "$runner_file"
     return "$exit_code"
 }

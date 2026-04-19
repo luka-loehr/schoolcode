@@ -1,14 +1,10 @@
-# SchoolCode
+# SchoolCode — Dev environment setup for shared school Macs
 
-Automated developer tool deployment for macOS Guest accounts.
+[![macOS](https://img.shields.io/badge/macOS-10.14%2B-007AFF?style=flat&logo=apple&logoColor=white)](https://support.apple.com/macos)
+[![Version](https://img.shields.io/github/v/release/luka-loehr/schoolcode?label=version&color=blue&logo=github&style=flat)](https://github.com/luka-loehr/schoolcode/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green?style=flat)](LICENSE)
 
-[![Version](https://img.shields.io/github/v/release/luka-loehr/schoolcode?label=version&color=blue&logo=github)](https://github.com/luka-loehr/schoolcode/releases)
-[![macOS](https://img.shields.io/badge/macOS-10.14%2B-success)](https://support.apple.com/macos)
-[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
-
-## Overview
-
-SchoolCode automates setup of a complete development environment for students on shared macOS machines. It installs Python, Homebrew, Git, and pip with security wrappers that prevent Guest accounts from modifying system packages or using sudo.
+**SchoolCode** sets up a complete development environment on shared school Macs in one command. Installs Python, Homebrew, Git, and pip with security wrappers that prevent Guest accounts from modifying system packages or using sudo.
 
 ## Requirements
 
@@ -109,6 +105,8 @@ SchoolCode/
 
 ## License
 
-Apache License 2.0 - © 2025 Luka Löhr
+Apache 2.0
 
-> Test notice: daemon version tracking test - 2025-12-03 11:55
+---
+
+Developed by [Luka Löhr](https://github.com/luka-loehr)

@@ -16,13 +16,13 @@ Copyright (c) 2025 Luka Löhr
 sudo ./schoolcode.sh                    # Install everything
 sudo ./schoolcode.sh --install          # Same as above (explicit)
 sudo ./schoolcode.sh --uninstall        # Remove SchoolCode (no prompts)
-sudo ./schoolcode.sh --interactive      # Interactive mode
+sudo ./schoolcode.sh --interactive      # Compatibility alias for the main install flow
 sudo ./schoolcode.sh --status           # Check system health
 sudo ./schoolcode.sh --help             # Show help
 
 # Advanced CLI (Legacy)
-sudo ./scripts/schoolcode-cli.sh install-auto      # Automatic install
-sudo ./scripts/schoolcode-cli.sh install-interactive # Interactive install
+sudo ./scripts/schoolcode-cli.sh install-auto      # Legacy alias for install
+sudo ./scripts/schoolcode-cli.sh install-interactive # Legacy alias for install
 sudo ./scripts/schoolcode-cli.sh status detailed   # Detailed status
 sudo ./scripts/schoolcode-cli.sh repair            # Fix system issues
 sudo ./scripts/schoolcode-cli.sh uninstall         # Remove SchoolCode
@@ -80,7 +80,7 @@ sudo ./schoolcode.sh --interactive
 
 ### 2. **Making Changes**
 ```bash
-# Test changes with dry-run (if available)
+# Test changes with dry-run (legacy alias still supported)
 sudo ./scripts/schoolcode-cli.sh --dry-run install-auto
 
 # Test in Guest account
@@ -135,6 +135,7 @@ sudo ./scripts/schoolcode-cli.sh repair
 - **No System Modification**: Never modify system-level configurations
 - **Temporary Changes**: All modifications must be reversible
 - **Cleanup on Logout**: Ensure all changes are removed when Guest account logs out
+- Prefer macOS account isolation and normal filesystem permissions over custom blocking wrappers unless there is a real privilege gap to close.
 
 ### Security Implementation
 ```bash

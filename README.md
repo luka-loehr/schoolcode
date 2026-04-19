@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/github/v/release/luka-loehr/schoolcode?label=version&color=blue&logo=github&style=flat)](https://github.com/luka-loehr/schoolcode/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green?style=flat)](LICENSE)
 
-**SchoolCode** sets up a complete development environment on shared school Macs in one command. Installs Python, Homebrew, Git, and pip with security wrappers that prevent Guest accounts from modifying system packages or using sudo.
+**SchoolCode** sets up a complete development environment on shared school Macs in one command. It installs Python, Homebrew, Git, and pip while leaning on macOS account permissions and standard Homebrew ownership rather than custom root-escalation tricks.
 
 ## Requirements
 
@@ -45,14 +45,14 @@ sudo ./schoolcode.sh --help             # Show help
 - **Python** - Official Python from python.org
 - **Git** - Version control
 - **pip** - Python package manager
-- **Security Wrappers** - Prevents Guest users from modifying system packages
+- **Pip Shims** - Resolve the active pip binary consistently for the shared environment
 
 ## Security Model
 
 Guest accounts are fully isolated:
-- Cannot use `sudo` or install system-wide packages
+- Cannot administer the Mac or change system settings
 - pip restricted to user-only installations (`--user` flag)
-- Homebrew limited to read-only commands
+- Homebrew remains owned by the installing account in the default prefix
 - All modifications cleaned on logout
 
 ## Advanced Usage

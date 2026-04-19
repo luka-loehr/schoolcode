@@ -28,6 +28,7 @@ ALERTS_FILE="/var/log/schoolcode/alerts.log"
 
 # Health check status variables (bash 3.2 compatible)
 HEALTH_OVERALL="unknown"
+HEALTH_GUEST_ACCOUNT="unknown"
 HEALTH_SCHOOLCODE_TOOLS="unknown"
 HEALTH_GUEST_SETUP="unknown"
 HEALTH_LAUNCHAGENT="unknown"
@@ -87,6 +88,7 @@ set_health_status() {
     
     case "$component" in
         "overall") HEALTH_OVERALL="$status" ;;
+        "guest_account") HEALTH_GUEST_ACCOUNT="$status" ;;
         "schoolcode_tools") HEALTH_SCHOOLCODE_TOOLS="$status" ;;
         "guest_setup") HEALTH_GUEST_SETUP="$status" ;;
         "launchagent") HEALTH_LAUNCHAGENT="$status" ;;
@@ -102,6 +104,7 @@ get_health_status() {
     
     case "$component" in
         "overall") echo "$HEALTH_OVERALL" ;;
+        "guest_account") echo "$HEALTH_GUEST_ACCOUNT" ;;
         "schoolcode_tools") echo "$HEALTH_SCHOOLCODE_TOOLS" ;;
         "guest_setup") echo "$HEALTH_GUEST_SETUP" ;;
         "launchagent") echo "$HEALTH_LAUNCHAGENT" ;;
@@ -110,6 +113,27 @@ get_health_status() {
         "disk_space") echo "$HEALTH_DISK_SPACE" ;;
         *) echo "unknown" ;;
     esac
+}
+
+check_guest_account_enabled() {
+    if [[ "$(uname)" != "Darwin" ]]; then
+        set_health_status "guest_account" "unknown"
+        add_health_issue "Guest account state can only be checked on macOS."
+        return 2
+    fi
+
+    local guest_enabled
+    guest_enabled=$(defaults read /Library/Preferences/com.apple.loginwindow GuestEnabled 2>/dev/null || echo "0")
+
+    if [[ "$guest_enabled" != "1" ]]; then
+        set_health_status "guest_account" "unhealthy"
+        log_error "macOS Guest User is disabled"
+        add_health_issue "Guest User is disabled in System Settings > Users & Groups."
+        return 1
+    fi
+
+    set_health_status "guest_account" "healthy"
+    return 0
 }
 
 # Function to get system uptime
@@ -163,6 +187,7 @@ check_schoolcode_tools() {
     if [[ ! -d "$schoolcode_tools_dir/bin" ]]; then
         set_health_status "schoolcode_tools" "unhealthy"
         log_error "SchoolCode tools directory missing: $schoolcode_tools_dir/bin"
+        add_health_issue "SchoolCode tools directory missing at $schoolcode_tools_dir/bin."
         return 1
     fi
     
@@ -220,9 +245,15 @@ check_schoolcode_tools() {
         return 0
     elif [[ $tools_working -gt 0 ]]; then
         set_health_status "schoolcode_tools" "degraded"
+        if [[ -n "$METRICS_MISSING_TOOLS" ]]; then
+            add_health_issue "Some managed tools are unavailable: $METRICS_MISSING_TOOLS."
+        fi
         return 2
     else
         set_health_status "schoolcode_tools" "unhealthy"
+        if [[ -n "$METRICS_MISSING_TOOLS" ]]; then
+            add_health_issue "No managed tools are available. Missing: $METRICS_MISSING_TOOLS."
+        fi
         return 1
     fi
 }
@@ -273,6 +304,7 @@ check_homebrew() {
     if ! command -v brew &> /dev/null; then
         set_health_status "homebrew" "unhealthy"
         log_error "Homebrew not installed"
+        add_health_issue "Homebrew is not installed or not available in PATH."
         return 1
     fi
     
@@ -326,6 +358,7 @@ check_homebrew() {
         set_health_status "homebrew" "unhealthy"
         log_error "Homebrew has critical errors"
         log_debug "Brew doctor output: $doctor_output"
+        add_health_issue "Homebrew reports critical errors."
         return 1
     fi
     
@@ -349,6 +382,7 @@ check_homebrew() {
         set_health_status "homebrew" "degraded"
         log_warn "Homebrew has warnings (exit code: $doctor_exit_code)"
         log_debug "Warning count: $warning_count, Error count: $error_count"
+        add_health_issue "Homebrew has warnings that should be reviewed."
         return 2
     fi
     
@@ -394,6 +428,7 @@ check_permissions() {
         
         if [[ "$homebrew_readable" == "false" ]]; then
             log_warn "Homebrew files not readable by all users"
+            add_health_issue "Homebrew files are not readable by all users."
             ((permission_issues++))
         fi
     fi
@@ -418,12 +453,14 @@ check_guest_setup() {
     if [[ ! -f "$setup_script" ]]; then
         set_health_status "guest_setup" "unhealthy"
         log_error "Guest setup script missing: $setup_script"
+        add_health_issue "Guest setup script missing at $setup_script."
         return 1
     fi
     
     if [[ ! -f "$login_script" ]]; then
         set_health_status "guest_setup" "degraded"
         log_warn "Guest login script missing: $login_script"
+        add_health_issue "Guest login script missing at $login_script."
         return 2
     fi
     
@@ -434,6 +471,7 @@ check_guest_setup() {
     else
         set_health_status "guest_setup" "degraded"
         log_warn "Guest setup scripts not executable"
+        add_health_issue "Guest setup scripts exist but are not executable."
         return 2
     fi
 }
@@ -504,6 +542,7 @@ run_health_checks() {
     local check_count=0
 
     # Run individual checks
+    check_guest_account_enabled; local guest_account_result=$?
     check_disk_space; local disk_result=$?
     check_schoolcode_tools; local tools_result=$?
     check_launchagent; local agent_result=$?
@@ -518,12 +557,16 @@ run_health_checks() {
     # Restore logging
     export SCHOOLCODE_QUIET="$old_quiet"
 
-    # Calculate overall health score (including new checks)
-    for result in $disk_result $tools_result $agent_result $brew_result $perms_result $guest_result $age_result; do
+    # Calculate overall health from proof components.
+    local results="$guest_account_result $disk_result $tools_result $agent_result $brew_result $perms_result $guest_result $age_result"
+    local has_unhealthy=false
+    local has_degraded=false
+    local result
+    for result in $results; do
         case $result in
-            0) overall_score=$((overall_score + 100)) ;;  # healthy
-            2) overall_score=$((overall_score + 50)) ;;   # degraded
-            *) overall_score=$((overall_score + 0)) ;;    # unhealthy
+            0) overall_score=$((overall_score + 100)) ;;
+            2) overall_score=$((overall_score + 50)); has_degraded=true ;;
+            *) overall_score=$((overall_score + 0)); has_unhealthy=true ;;
         esac
         ((check_count++))
     done
@@ -533,14 +576,12 @@ run_health_checks() {
         log_info "System has $resource_result resource limitations"
     fi
     
-    local avg_score=$((overall_score / check_count))
-    
-    if [[ $avg_score -ge 90 ]]; then
-        set_health_status "overall" "healthy"
-    elif [[ $avg_score -ge 50 ]]; then
+    if [[ "$has_unhealthy" == "true" ]]; then
+        set_health_status "overall" "unhealthy"
+    elif [[ "$has_degraded" == "true" ]]; then
         set_health_status "overall" "degraded"
     else
-        set_health_status "overall" "unhealthy"
+        set_health_status "overall" "healthy"
     fi
     
     METRICS_LAST_CHECK=$(date '+%Y-%m-%d %H:%M:%S')
@@ -557,6 +598,7 @@ save_health_status() {
   "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
   "overall_status": "$(get_health_status overall)",
   "components": {
+    "guest_account": "$(get_health_status guest_account)",
     "schoolcode_tools": "$(get_health_status schoolcode_tools)",
     "guest_setup": "$(get_health_status guest_setup)",
     "launchagent": "$(get_health_status launchagent)",
@@ -597,7 +639,7 @@ show_health_status() {
         *) ui_status fail "Overall status: UNHEALTHY" ;;
     esac
 
-    local components="schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
+    local components="guest_account schoolcode_tools guest_setup launchagent homebrew permissions disk_space"
     local component_rows=()
     local component
     for component in $components; do
@@ -612,6 +654,12 @@ show_health_status() {
         ui_section "Components"
         ui_list info "${component_rows[@]}"
     fi
+
+    ui_section "Proofs"
+    render_proof "Guest User enabled" "$(get_health_status guest_account)"
+    render_proof "Installation artifacts present" "$(combine_statuses "$(get_health_status schoolcode_tools)" "$(get_health_status guest_setup)" "$(get_health_status launchagent)")"
+    render_proof "Shared toolchain usable" "$(combine_statuses "$(get_health_status schoolcode_tools)" "$(get_health_status homebrew)")"
+    render_proof "Guest login automation ready" "$(combine_statuses "$(get_health_status guest_account)" "$(get_health_status guest_setup)" "$(get_health_status launchagent)")"
 
     if [[ -n "$HEALTH_ISSUES" ]]; then
         ui_section "Issues"
@@ -634,6 +682,42 @@ show_health_status() {
     fi
 }
 
+combine_statuses() {
+    local status
+    for status in "$@"; do
+        if [[ "$status" == "unhealthy" ]]; then
+            echo "unhealthy"
+            return 0
+        fi
+    done
+
+    for status in "$@"; do
+        if [[ "$status" == "degraded" ]] || [[ "$status" == "unknown" ]]; then
+            echo "degraded"
+            return 0
+        fi
+    done
+
+    echo "healthy"
+}
+
+render_proof() {
+    local label="$1"
+    local status="$2"
+
+    case "$status" in
+        healthy)
+            ui_status ok "$label"
+            ;;
+        degraded)
+            ui_status warn "$label"
+            ;;
+        *)
+            ui_status fail "$label"
+            ;;
+    esac
+}
+
 show_guest_status() {
     ui_header "SchoolCode Guest Status" "Guest environment"
 
@@ -646,6 +730,14 @@ show_guest_status() {
         ui_status ok "Current session is running as Guest"
     else
         ui_status info "Current session is running as $guest_user"
+    fi
+
+    local guest_enabled
+    guest_enabled=$(defaults read /Library/Preferences/com.apple.loginwindow GuestEnabled 2>/dev/null || echo "0")
+    if [[ "$guest_enabled" == "1" ]]; then
+        ui_status ok "Guest User is enabled in macOS"
+    else
+        ui_status fail "Guest User is disabled in macOS"
     fi
 
     ui_section "Artifacts"

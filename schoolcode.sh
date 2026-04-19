@@ -48,6 +48,7 @@ extract_install_failure_reason() {
     fi
 
     first_error="${first_error#\[ERROR\] }"
+    first_error="${first_error#\[INSTALL\] }"
     printf '%s' "$first_error"
 }
 
@@ -233,21 +234,17 @@ uninstall_schoolcode_noninteractive() {
 automatic_mode() {
     ui_header "SchoolCode v$SCRIPT_VERSION" "Shared Mac development environment"
 
-    local failed=false
-
     if ! do_compatibility_check; then
-        failed=true
+        write_status_log "error" "SchoolCode installation failed"
+        exit 1
     fi
 
-    if [[ "$failed" == "false" ]] && ! do_system_repair; then
-        failed=true
+    if ! do_system_repair; then
+        write_status_log "error" "SchoolCode installation failed"
+        exit 1
     fi
 
-    if [[ "$failed" == "false" ]] && ! do_install_tools; then
-        failed=true
-    fi
-
-    if [[ "$failed" == "true" ]]; then
+    if ! do_install_tools; then
         write_status_log "error" "SchoolCode installation failed"
         exit 1
     fi

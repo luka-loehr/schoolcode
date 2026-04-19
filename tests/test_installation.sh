@@ -73,6 +73,7 @@ test_script_exists() {
         "$PROJECT_ROOT/scripts/schoolcode-cli.sh"
         "$PROJECT_ROOT/system_repair.sh"
         "$PROJECT_ROOT/old_mac_compatibility.sh"
+        "$PROJECT_ROOT/scripts/setup/setup_guest_shell_init.sh"
     )
     
     local missing=0
@@ -100,6 +101,7 @@ test_script_executable() {
         "$PROJECT_ROOT/scripts/schoolcode-cli.sh"
         "$PROJECT_ROOT/system_repair.sh"
         "$PROJECT_ROOT/old_mac_compatibility.sh"
+        "$PROJECT_ROOT/scripts/setup/setup_guest_shell_init.sh"
     )
     
     local not_executable=0
@@ -127,6 +129,7 @@ test_script_syntax() {
         "$PROJECT_ROOT/scripts/schoolcode-cli.sh"
         "$PROJECT_ROOT/system_repair.sh"
         "$PROJECT_ROOT/old_mac_compatibility.sh"
+        "$PROJECT_ROOT/scripts/setup/setup_guest_shell_init.sh"
     )
     
     local syntax_errors=0
@@ -181,10 +184,7 @@ test_cli_status() {
     ((TESTS_RUN++))
     
     if [[ -f "$PROJECT_ROOT/scripts/schoolcode-cli.sh" ]]; then
-        # Test without sudo first (should show permission error, not syntax error)
-        local output
-        output=$(./scripts/schoolcode-cli.sh status 2>&1 || true)
-        if echo "$output" | grep -q "root\|permission\|sudo"; then
+        if ./scripts/schoolcode-cli.sh status >/dev/null 2>&1; then
             print_pass
         else
             print_fail

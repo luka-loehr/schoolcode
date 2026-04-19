@@ -31,9 +31,10 @@ sudo ./schoolcode.sh --status
 
 ```bash
 sudo ./schoolcode.sh                    # Install everything
+sudo ./schoolcode.sh --interactive      # Compatibility alias for guided install
 sudo ./schoolcode.sh --status           # Check system health
 sudo ./schoolcode.sh --uninstall        # Remove SchoolCode
-sudo ./schoolcode.sh --logs             # View logs interactively
+sudo ./schoolcode.sh --logs             # View logs
 sudo ./schoolcode.sh --help             # Show help
 ```
 
@@ -93,6 +94,8 @@ sudo ./scripts/schoolcode-cli.sh guest setup
 ```
 SchoolCode/
 ├── schoolcode.sh                    # Main entry point
+├── system_repair.sh                # Compatibility wrapper for repair utility
+├── old_mac_compatibility.sh        # Compatibility wrapper for checker
 ├── scripts/
 │   ├── schoolcode-cli.sh            # Advanced CLI tool
 │   ├── install.sh                   # Installation logic

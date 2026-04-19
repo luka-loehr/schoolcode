@@ -132,7 +132,7 @@ log() {
         case "$level" in
             ERROR) log_error "[INSTALL] $message" ;;
             WARN) log_warn "[INSTALL] $message" ;;
-            SUCCESS) log_info "[INSTALL] ✅ $message" ;;
+            SUCCESS) log_info "[INSTALL] $message" ;;
             INFO) log_info "[INSTALL] $message" ;;
             DEBUG) log_debug "[INSTALL] $message" ;;
             *) log_info "[INSTALL] $message" ;;
@@ -144,11 +144,11 @@ log() {
         
         if [[ "$QUIET" != "true" ]]; then
             case "$level" in
-                ERROR) echo -e "${RED}❌ $message${NC}" >&2 ;;
-                WARN) echo -e "${YELLOW}⚠️  $message${NC}" >&2 ;;
-                SUCCESS) echo -e "${GREEN}✅ $message${NC}" ;;
-                INFO) [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}ℹ️  $message${NC}" ;;
-                DEBUG) [[ "$VERBOSE" == "true" ]] && echo -e "${CYAN}🔍 $message${NC}" ;;
+                ERROR) echo -e "${RED}[FAIL] $message${NC}" >&2 ;;
+                WARN) echo -e "${YELLOW}[WARN] $message${NC}" >&2 ;;
+                SUCCESS) echo -e "${GREEN}[OK] $message${NC}" ;;
+                INFO) [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[INFO] $message${NC}" ;;
+                DEBUG) [[ "$VERBOSE" == "true" ]] && echo -e "${CYAN}[DEBUG] $message${NC}" ;;
                 *) echo "$message" ;;
             esac
         fi
@@ -1465,9 +1465,9 @@ main() {
     # Print header (only if not quiet)
     if [[ "$QUIET" != "true" ]]; then
         echo ""
-        echo -e "${BLUE}╔═══════════════════════════════════════╗${NC}"
-        echo -e "${BLUE}║   SchoolCode Installation v${SCRIPT_VERSION}    ║${NC}"
-        echo -e "${BLUE}╚═══════════════════════════════════════╝${NC}"
+        echo -e "${BLUE}╭────────────────────────────────────────────────────────╮${NC}"
+        printf "${BLUE}│%-56s│${NC}\n" " SchoolCode Installation v${SCRIPT_VERSION}"
+        echo -e "${BLUE}╰────────────────────────────────────────────────────────╯${NC}"
         echo ""
         
         if [[ "$DRY_RUN" == "true" ]]; then
@@ -1537,9 +1537,9 @@ main() {
     # Print completion message (only if not quiet)
     if [[ "$QUIET" != "true" ]]; then
         echo ""
-        echo -e "${GREEN}╔═══════════════════════════════════════╗${NC}"
-        echo -e "${GREEN}║    Installation Complete! 🎉          ║${NC}"
-        echo -e "${GREEN}╚═══════════════════════════════════════╝${NC}"
+        echo -e "${GREEN}╭────────────────────────────────────────────────────────╮${NC}"
+        printf "${GREEN}│%-56s│${NC}\n" " Installation Complete"
+        echo -e "${GREEN}╰────────────────────────────────────────────────────────╯${NC}"
         echo ""
         echo "Next steps:"
         echo "  1. Restart your terminal or run: source ~/.zshrc"

@@ -56,16 +56,18 @@ DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Premium header
-print_header() {
-    local width=50
+# Shared terminal framing
+print_box() {
+    local title="$1"
+    local color="${2:-$HEADER}"
+    local width=56
+
     echo ""
-    printf "${HEADER}"
+    printf "%b" "$color"
     printf "╭"
     printf '─%.0s' $(seq 1 $((width-2)))
     printf "╮\n"
-    
-    local title="SchoolCode v$SCRIPT_VERSION"
+
     local padding=$(( (width - 2 - ${#title}) / 2 ))
     printf "│"
     printf ' %.0s' $(seq 1 $padding)
@@ -76,6 +78,11 @@ print_header() {
     printf "╰"
     printf '─%.0s' $(seq 1 $((width-2)))
     printf "╯${NC}\n"
+}
+
+# Premium header
+print_header() {
+    print_box "SchoolCode v$SCRIPT_VERSION" "$HEADER"
 }
 
 # Status reporting functions
@@ -116,18 +123,16 @@ check_root() {
 
 # Simple progress display (no background processes)
 show_progress() {
-    printf "  ${INFO}•${NC} %s..." "$1"
+    printf "  %-8s %s\n" "[RUN]" "$1"
 }
 
 show_result() {
     local result="$1"
     local msg="${2:-}"
-    # Clear line and show result
-    printf "\r\033[K"  # Move to start and clear line
     case "$result" in
-        success) printf "  ${SUCCESS}✓${NC} %s\n" "$msg" ;;
-        error)   printf "  ${ERROR}✗${NC} %s\n" "$msg" ;;
-        warning) printf "  ${WARNING}!${NC} %s\n" "$msg" ;;
+        success) printf "  %-8s %s\n" "[OK]" "$msg" ;;
+        error)   printf "  %-8s %s\n" "[FAIL]" "$msg" ;;
+        warning) printf "  %-8s %s\n" "[WARN]" "$msg" ;;
     esac
 }
 
@@ -372,24 +377,7 @@ automatic_mode() {
     echo ""
     
     if [[ "$failed" != "true" ]]; then
-        # Success box
-        local width=50
-        printf "${SUCCESS}"
-        printf "╭"
-        printf '─%.0s' $(seq 1 $((width-2)))
-        printf "╮\n"
-        
-        local msg="Installation Complete!"
-        local padding=$(( (width - 2 - ${#msg}) / 2 ))
-        printf "│"
-        printf ' %.0s' $(seq 1 $padding)
-        printf "%s" "$msg"
-        printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#msg})))
-        printf "│\n"
-        
-        printf "╰"
-        printf '─%.0s' $(seq 1 $((width-2)))
-        printf "╯${NC}\n"
+        print_box "Installation Complete" "$SUCCESS"
         
         update_status "ready" "SchoolCode installation completed successfully"
         log_operation_end "INSTALL" "SUCCESS"
@@ -398,24 +386,7 @@ automatic_mode() {
         printf "    • Switch to Guest account to test\n"
         printf "    • Run ${BOLD}./schoolcode.sh --status${NC} to verify\n"
     else
-        # Error box
-        local width=50
-        printf "${ERROR}"
-        printf "╭"
-        printf '─%.0s' $(seq 1 $((width-2)))
-        printf "╮\n"
-        
-        local msg="Installation Failed"
-        local padding=$(( (width - 2 - ${#msg}) / 2 ))
-        printf "│"
-        printf ' %.0s' $(seq 1 $padding)
-        printf "%s" "$msg"
-        printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#msg})))
-        printf "│\n"
-        
-        printf "╰"
-        printf '─%.0s' $(seq 1 $((width-2)))
-        printf "╯${NC}\n"
+        print_box "Installation Failed" "$ERROR"
         
         update_status "error" "SchoolCode installation failed"
         log_operation_end "INSTALL" "FAILED"

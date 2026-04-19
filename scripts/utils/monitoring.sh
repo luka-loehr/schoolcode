@@ -595,23 +595,37 @@ EOF
 # Function to display health status
 show_health_status() {
     local show_details="${1:-false}"
-    
-    # Compact header
+
+    print_status_box() {
+        local title="$1"
+        local width=56
+        echo ""
+        printf "╭"
+        printf '─%.0s' $(seq 1 $((width-2)))
+        printf "╮\n"
+        local padding=$(( (width - 2 - ${#title}) / 2 ))
+        printf "│"
+        printf ' %.0s' $(seq 1 $padding)
+        printf "%s" "$title"
+        printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#title})))
+        printf "│\n"
+        printf "╰"
+        printf '─%.0s' $(seq 1 $((width-2)))
+        printf "╯\n"
+    }
+
     echo ""
-    echo "╭────────────────────────────────────────╮"
-    echo "│       SchoolCode System Status         │"
-    echo "╰────────────────────────────────────────╯"
+    print_status_box "SchoolCode System Status"
     echo ""
-    
-    # Overall status with icon
+
     local overall_status=$(get_health_status "overall")
-    local overall_icon="✅"
+    local overall_label="[OK]"
     case "$overall_status" in
-        "degraded") overall_icon="⚠️ " ;;
-        "unhealthy") overall_icon="❌" ;;
+        "degraded") overall_label="[WARN]" ;;
+        "unhealthy") overall_label="[FAIL]" ;;
     esac
     local overall_upper=$(to_upper "$overall_status")
-    echo -e "  Status: $overall_icon $overall_upper"
+    echo "  Status: $overall_label $overall_upper"
     echo ""
     
     # Component status - only show if degraded or unhealthy
@@ -629,17 +643,17 @@ show_health_status() {
         echo "  Components:"
         for component in $components; do
             local status=$(get_health_status "$component")
-            local icon="✅"
+            local label="[OK]"
             
             case "$status" in
-                "degraded") icon="⚠️ " ;;
-                "unhealthy") icon="❌" ;;
+                "degraded") label="[WARN]" ;;
+                "unhealthy") label="[FAIL]" ;;
             esac
             
             # Only show non-healthy components in brief mode
             if [[ "$show_details" == "true" ]] || [[ "$status" != "healthy" ]]; then
                 local display_name=$(echo "$component" | sed 's/_/ /g')
-                printf "    • %-18s %s\n" "$display_name" "$icon"
+                printf "    %-20s %s\n" "$display_name" "$label"
             fi
         done
         echo ""

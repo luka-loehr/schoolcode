@@ -39,27 +39,47 @@ CLI_BOLD='\033[1m'
 CLI_NC='\033[0m'
 
 # Function to print formatted messages
+print_box() {
+    local title="$1"
+    local color="${2:-$CLI_HEADER}"
+    local width=56
+
+    echo -ne "${color}"
+    printf "╭"
+    printf '─%.0s' $(seq 1 $((width-2)))
+    printf "╮\n"
+
+    local padding=$(( (width - 2 - ${#title}) / 2 ))
+    printf "│"
+    printf ' %.0s' $(seq 1 $padding)
+    printf "%s" "$title"
+    printf ' %.0s' $(seq 1 $((width - 2 - padding - ${#title})))
+    printf "│\n"
+
+    printf "╰"
+    printf '─%.0s' $(seq 1 $((width-2)))
+    printf "╯${CLI_NC}\n"
+}
+
 print_header() {
-    echo -e "${CLI_HEADER}╔═══════════════════════════════════════╗"
-    echo -e "║           SchoolCode CLI v$SCRIPT_VERSION           ║"
-    echo -e "╚═══════════════════════════════════════╝${CLI_NC}"
+    print_box "SchoolCode CLI v$SCRIPT_VERSION" "$CLI_HEADER"
     echo ""
 }
 
 print_success() {
-    echo -e "${CLI_SUCCESS}✅ $1${CLI_NC}"
+    printf "%b[OK]%b %s\n" "$CLI_SUCCESS" "$CLI_NC" "$1"
 }
 
 print_warning() {
-    echo -e "${CLI_WARNING}⚠️  $1${CLI_NC}"
+    printf "%b[WARN]%b %s\n" "$CLI_WARNING" "$CLI_NC" "$1"
 }
 
 print_error() {
-    echo -e "${CLI_ERROR}❌ $1${CLI_NC}"
+    printf "%b[FAIL]%b %s\n" "$CLI_ERROR" "$CLI_NC" "$1"
 }
 
 print_info() {
-    echo -e "${CLI_INFO}ℹ️  $1${CLI_NC}"
+    printf "%b[INFO]%b %s\n" "$CLI_INFO" "$CLI_NC" "$1"
 }
 
 # Function to show help

@@ -190,8 +190,9 @@ do_install_tools() {
     # Create temporary file for error capture
     local error_log="/tmp/schoolcode_install_error_$$.log"
     
-    # Run install script with quiet mode, capture stderr
-    if SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/install.sh" -q 2>"$error_log"; then
+    # Run install script with quiet mode and capture all emitted output so the
+    # top-level UI can present a single concise failure summary.
+    if SCHOOLCODE_QUIET=true "$SCRIPT_DIR/scripts/install.sh" -q >"$error_log" 2>&1; then
         show_result "success" "Development tools installed"
         rm -f "$error_log"
         return 0
@@ -199,12 +200,19 @@ do_install_tools() {
         local exit_code=$?
         show_result "error" "Tool installation failed"
         
-        # Show error details if available
+        # Show the first relevant failure reason instead of replaying the
+        # installer's entire log stream.
         if [[ -s "$error_log" ]]; then
-            printf "\n  ${DIM}Error details:${NC}\n"
-            while IFS= read -r line; do
-                [[ -n "$line" ]] && printf "    ${DIM}• %s${NC}\n" "$line"
-            done < "$error_log"
+            local first_error=""
+            first_error=$(grep -E '\[ERROR\]|Installation failed' "$error_log" | head -1 || true)
+            if [[ -z "$first_error" ]]; then
+                first_error=$(grep -v '^[[:space:]]*$' "$error_log" | head -1 || true)
+            fi
+
+            if [[ -n "$first_error" ]]; then
+                first_error="${first_error#\[ERROR\] }"
+                printf "\n  ${DIM}Reason:${NC} %s\n" "$first_error"
+            fi
         fi
         
         # Show latest install log file

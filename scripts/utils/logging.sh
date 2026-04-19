@@ -16,19 +16,16 @@ _SCHOOLCODE_LOGGING_SOURCED=1
 : "${EVENTS_LOG:=$LOG_DIR/events.json}"
 : "${METRICS_LOG:=$LOG_DIR/metrics.json}"
 
-# Ensure log directory exists and check integrity
+# Ensure log directory exists on source when possible.
 if [[ $EUID -eq 0 ]]; then
     mkdir -p "$LOG_DIR" 2>/dev/null || true
     chmod 755 "$LOG_DIR" 2>/dev/null || true
     touch "$LOG_FILE" "$ERROR_LOG" "$SETUP_LOG" "$EVENTS_LOG" "$METRICS_LOG" 2>/dev/null || true
     chmod 644 "$LOG_FILE" "$ERROR_LOG" "$SETUP_LOG" "$EVENTS_LOG" "$METRICS_LOG" 2>/dev/null || true
-    
-    # Initialize JSON files if empty
+
+    # Initialize JSON files if empty.
     [[ ! -s "$EVENTS_LOG" ]] && echo "[]" > "$EVENTS_LOG" 2>/dev/null || true
     [[ ! -s "$METRICS_LOG" ]] && echo "[]" > "$METRICS_LOG" 2>/dev/null || true
-    
-    # Clean up old install logs on initialization
-    cleanup_install_logs 2>/dev/null || true
 fi
 
 # Run integrity check (defined later, will run after functions are loaded)
@@ -414,17 +411,31 @@ show_logs() {
     case "$log_type" in
         "error")
             echo "=== Recent Error Logs ==="
-            [[ -f "$ERROR_LOG" ]] && tail -n "$lines" "$ERROR_LOG"
+            if [[ -f "$ERROR_LOG" ]]; then
+                tail -n "$lines" "$ERROR_LOG"
+            else
+                echo "No error logs found"
+            fi
             ;;
         "guest")
             echo "=== Recent Guest Setup Logs ==="
-            [[ -f "$SETUP_LOG" ]] && tail -n "$lines" "$SETUP_LOG"
+            if [[ -f "$SETUP_LOG" ]]; then
+                tail -n "$lines" "$SETUP_LOG"
+            else
+                echo "No guest setup logs found"
+            fi
             ;;
         "all"|*)
             echo "=== Recent SchoolCode Logs ==="
-            [[ -f "$LOG_FILE" ]] && tail -n "$lines" "$LOG_FILE"
+            if [[ -f "$LOG_FILE" ]]; then
+                tail -n "$lines" "$LOG_FILE"
+            else
+                echo "No SchoolCode logs found"
+            fi
             ;;
     esac
+
+    return 0
 }
 
 # Function to clear logs
@@ -496,6 +507,11 @@ check_log_integrity() {
     
     return $issues
 }
+
+# Clean up old install logs after all helpers are defined.
+if [[ $EUID -eq 0 ]]; then
+    cleanup_install_logs 2>/dev/null || true
+fi
 
 # Export functions for use in other scripts
 export -f log_debug log_info log_warn log_error log_fatal log_guest

@@ -77,6 +77,27 @@ get_tool_test_cmd() {
 # Configuration storage (using files instead of associative arrays)
 CONFIG_CACHE_FILE="/tmp/schoolcode_config_cache.$"
 
+write_config_value() {
+    local file_path="$1"
+    local key="$2"
+    local value="$3"
+
+    awk -F= -v target_key="$key" -v target_value="$value" '
+        BEGIN { updated = 0 }
+        $1 == target_key {
+            print target_key "=" target_value
+            updated = 1
+            next
+        }
+        { print }
+        END {
+            if (!updated) {
+                print target_key "=" target_value
+            }
+        }
+    ' "$file_path" > "${file_path}.tmp" && mv "${file_path}.tmp" "$file_path"
+}
+
 # Function to create default config file
 create_default_config() {
     local config_file="$1"
@@ -177,7 +198,7 @@ EOF
             
             # Update cache
             if [[ -n "$key" ]]; then
-                sed -i.bak "s/^$key=.*/$key=$value/" "$CONFIG_CACHE_FILE" 2>/dev/null || true
+                write_config_value "$CONFIG_CACHE_FILE" "$key" "$value" 2>/dev/null || true
             fi
         done < "$CONFIG_FILE"
         
@@ -196,7 +217,7 @@ EOF
             value=$(echo "$value" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^"//' | sed 's/"$//')
             
             if [[ -n "$key" ]]; then
-                sed -i.bak "s/^$key=.*/$key=$value/" "$CONFIG_CACHE_FILE" 2>/dev/null || true
+                write_config_value "$CONFIG_CACHE_FILE" "$key" "$value" 2>/dev/null || true
             fi
         done < "$USER_CONFIG_FILE"
         
@@ -247,7 +268,7 @@ set_config() {
     [[ ! -f "$CONFIG_CACHE_FILE" ]] && load_config
     
     # Update cache
-    sed -i.bak "s/^$key=.*/$key=$value/" "$CONFIG_CACHE_FILE" 2>/dev/null || echo "$key=$value" >> "$CONFIG_CACHE_FILE"
+    write_config_value "$CONFIG_CACHE_FILE" "$key" "$value" 2>/dev/null || echo "$key=$value" >> "$CONFIG_CACHE_FILE"
     
     # Determine which file to update
     local target_file
@@ -265,7 +286,7 @@ set_config() {
     # Update or add the configuration value
     if grep -q "^$key=" "$target_file" 2>/dev/null; then
         # Update existing value
-        sed -i.bak "s/^$key=.*/$key=$value/" "$target_file"
+        write_config_value "$target_file" "$key" "$value"
     else
         # Add new value
         echo "$key=$value" >> "$target_file"
@@ -412,12 +433,6 @@ cleanup_config() {
     rm -f "$CONFIG_CACHE_FILE" "$CONFIG_CACHE_FILE.bak" 2>/dev/null
 }
 
-# Set trap to cleanup cache file
-trap cleanup_config EXIT
-
-# Initialize configuration on source
-load_config
-
 # Export configuration functions
 export -f get_config set_config get_tools_array get_tool_info is_homebrew_tool
-export -f validate_config show_config reset_config 
+export -f validate_config show_config reset_config cleanup_config

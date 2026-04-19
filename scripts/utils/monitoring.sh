@@ -26,12 +26,13 @@ ALERTS_FILE="/var/log/schoolcode/alerts.log"
 
 # Health check status variables (bash 3.2 compatible)
 HEALTH_OVERALL="unknown"
-HEALTH_ADMIN_TOOLS="unknown"
+HEALTH_SCHOOLCODE_TOOLS="unknown"
 HEALTH_GUEST_SETUP="unknown"
 HEALTH_LAUNCHAGENT="unknown"
 HEALTH_HOMEBREW="unknown"
 HEALTH_PERMISSIONS="unknown"
 HEALTH_DISK_SPACE="unknown"
+LAST_HEALTH_STATUS_FILE="$HEALTH_CHECK_FILE"
 
 # Human-readable issue messages
 HEALTH_ISSUES=""
@@ -43,6 +44,23 @@ METRICS_ERROR_COUNT="0"
 METRICS_GUEST_LOGINS="0"
 METRICS_LAST_CHECK="never"
 METRICS_MISSING_TOOLS=""  # Space-separated list of missing tools
+
+resolve_status_file() {
+    local requested_path="$1"
+    local requested_dir
+    requested_dir="$(dirname "$requested_path")"
+
+    if mkdir -p "$requested_dir" 2>/dev/null; then
+        if [[ -w "$requested_dir" ]]; then
+            echo "$requested_path"
+            return 0
+        fi
+    fi
+
+    local fallback_dir="/tmp/schoolcode"
+    mkdir -p "$fallback_dir"
+    echo "$fallback_dir/$(basename "$requested_path")"
+}
 
 # Function to convert to uppercase (bash 3.2 compatible)
 to_upper() {
@@ -376,12 +394,12 @@ check_permissions() {
     # Check Homebrew permissions
     if [[ -d "/opt/homebrew" ]]; then
         local homebrew_readable=true
-        find /opt/homebrew/bin -type f -executable 2>/dev/null | head -5 | while read -r file; do
+        while read -r file; do
             if [[ ! -r "$file" ]]; then
                 homebrew_readable=false
                 break
             fi
-        done
+        done < <(find /opt/homebrew/bin -type f -executable 2>/dev/null | head -5)
         
         if [[ "$homebrew_readable" == "false" ]]; then
             log_warn "Homebrew files not readable by all users"
@@ -510,7 +528,7 @@ run_health_checks() {
     export SCHOOLCODE_QUIET="$old_quiet"
 
     # Calculate overall health score (including new checks)
-    for result in $disk_result $tools_result $agent_result $daemon_result $brew_result $perms_result $guest_result $age_result; do
+    for result in $disk_result $tools_result $agent_result $brew_result $perms_result $guest_result $age_result; do
         case $result in
             0) overall_score=$((overall_score + 100)) ;;  # healthy
             2) overall_score=$((overall_score + 50)) ;;   # degraded
@@ -539,10 +557,10 @@ run_health_checks() {
 
 # Function to save health status to file
 save_health_status() {
-    local status_file="$1"
-    
-    mkdir -p "$(dirname "$status_file")" 2>/dev/null
-    
+    local status_file
+    status_file="$(resolve_status_file "$1")"
+    LAST_HEALTH_STATUS_FILE="$status_file"
+
     cat > "$status_file" << EOF
 {
   "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
@@ -676,9 +694,11 @@ monitor_guest_setup() {
 generate_alerts() {
     local alert_level="$1"  # info, warn, error
     local message="$2"
-    
+    local alerts_file
+    alerts_file="$(resolve_status_file "$ALERTS_FILE")"
+
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] [$alert_level] $message" >> "$ALERTS_FILE"
+    echo "[$timestamp] [$alert_level] $message" >> "$alerts_file"
     
     case "$alert_level" in
         "error")
@@ -754,13 +774,19 @@ case "${1:-status}" in
     "json")
         run_health_checks
         save_health_status "$HEALTH_CHECK_FILE"
-        cat "$HEALTH_CHECK_FILE"
+        cat "$LAST_HEALTH_STATUS_FILE"
         ;;
     "monitor")
         continuous_monitoring "${2:-300}"
         ;;
     "alerts")
-        [[ -f "$ALERTS_FILE" ]] && tail -n "${2:-20}" "$ALERTS_FILE" || echo "No alerts found"
+        if [[ -f "$ALERTS_FILE" ]]; then
+            tail -n "${2:-20}" "$ALERTS_FILE"
+        elif [[ -f "/tmp/schoolcode/$(basename "$ALERTS_FILE")" ]]; then
+            tail -n "${2:-20}" "/tmp/schoolcode/$(basename "$ALERTS_FILE")"
+        else
+            echo "No alerts found"
+        fi
         ;;
     "guest")
         monitor_guest_setup
